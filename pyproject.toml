@@ -1,0 +1,74 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "contra-rl"
+version = "0.0.1"
+description = "Reinforcement learning agent that plays Contra (NES)"
+readme = "README.md"
+requires-python = ">=3.11"
+authors = [{ name = "truongbnguyen88" }]
+license = { text = "MIT" }
+dependencies = [
+    # Core RL
+    "stable-baselines3>=2.3.0",
+    "stable-retro>=0.9.2",
+    "gymnasium>=0.29.1",
+    "torch>=2.2.0",
+
+    # Numerical / image
+    "numpy>=1.26",
+    "opencv-python-headless>=4.9",
+    "imageio>=2.34",
+    "imageio-ffmpeg>=0.4.9",
+
+    # Config / logging
+    "pydantic>=2.6",
+    "pyyaml>=6.0",
+    "tensorboard>=2.16",
+    "rich>=13.7",
+
+    # Backend
+    "fastapi>=0.110",
+    "uvicorn[standard]>=0.29",
+
+    # Frontend (kept light; can be installed separately)
+    "streamlit>=1.33",
+    "plotly>=5.20",
+    "requests>=2.31",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-cov>=4.1",
+    "ruff>=0.4",
+    "black>=24.3",
+    "mypy>=1.9",
+    "pre-commit>=3.7",
+]
+wandb = ["wandb>=0.16"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM"]
+ignore = ["E501"]
+
+[tool.black]
+line-length = 100
+target-version = ["py311"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra --strict-markers"
+markers = [
+    "rom: requires a Contra ROM to be importable via stable-retro",
+    "slow: long-running tests",
+]

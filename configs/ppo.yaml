@@ -1,0 +1,43 @@
+# PPO training configuration.
+# Hyperparameters tuned for Atari-style visual inputs; reasonable starting point for Contra.
+
+run_name: ppo_contra_stage1
+seed: 42
+
+env_config: configs/env.yaml
+n_envs: 8                     # SubprocVecEnv workers; reduce on low-core machines
+
+# Algorithm
+algorithm: ppo
+policy: cnn                   # registered in models/policies.py
+total_timesteps: 10_000_000
+
+ppo:
+  learning_rate: 2.5e-4       # linear schedule applied in trainer
+  n_steps: 128                # per env; batch = n_envs * n_steps = 1024
+  batch_size: 256
+  n_epochs: 4
+  gamma: 0.99
+  gae_lambda: 0.95
+  clip_range: 0.1             # linear schedule applied in trainer
+  ent_coef: 0.01
+  vf_coef: 0.5
+  max_grad_norm: 0.5
+  normalize_advantage: true
+
+# Logging + eval
+log_dir: outputs/tensorboard
+checkpoint_dir: outputs/checkpoints
+video_dir: outputs/videos
+log_interval: 10              # PPO updates between TB flushes
+
+eval:
+  every_steps: 100_000        # env steps between evals
+  n_episodes: 5
+  deterministic: true
+  record_video: true
+
+checkpoint:
+  every_steps: 250_000
+  keep_last_k: 5
+  keep_best: true

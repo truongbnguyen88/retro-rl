@@ -1,0 +1,46 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+*.egg-info/
+*.egg
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Virtual envs
+.venv/
+venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
+# Project artifacts (never commit)
+roms/*
+!roms/.gitkeep
+outputs/checkpoints/
+outputs/logs/
+outputs/videos/
+outputs/tensorboard/
+wandb/
+*.zip
+*.pt
+*.pth
+*.ckpt
+
+# Streamlit
+.streamlit/secrets.toml
+
+# Env files
+.env
+.env.local

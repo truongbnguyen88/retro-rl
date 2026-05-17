@@ -1,0 +1,3 @@
+# Default config — points at PPO + env defaults.
+# `scripts/train.py --config configs/default.yaml` is equivalent to passing ppo.yaml.
+extends: configs/ppo.yaml
