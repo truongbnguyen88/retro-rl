@@ -30,6 +30,7 @@ Status legend: `[ ]` todo · `[~]` in progress · `[x]` done · `[!]` blocked
 - [x] `tests/test_env.py`: **17 passed, 1 skipped** (Contra smoke gated on user ROM dump)
 - [x] `configs/env-airstriker.yaml`: Airstriker-Genesis-v0 stand-in config — smoke test runs end-to-end
 - [x] `scripts/install_stable_retro_macos.sh`: source-build script with zlib patch for Apple Silicon
+- [x] `scripts/play_random.py`: visual sanity-check CLI — random-action rollouts with viewer window
 - [x] `docs/environment.md`: rationale for the macOS arm64 build path
 
 ## Milestone 2 — Models + agents
