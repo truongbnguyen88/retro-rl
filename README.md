@@ -1,4 +1,5 @@
 # retro-rl
+(Renamed from contra-rl)
 
 Reinforcement learning agent for [stable-retro](https://github.com/Farama-Foundation/stable-retro) games. PPO + CNN policy with a FastAPI backend and a Streamlit dashboard. Default target: **Airstriker (Genesis)** — a freely-distributable homebrew shooter that ships with stable-retro, so no separate ROM step is needed.
 
