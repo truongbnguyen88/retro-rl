@@ -157,7 +157,7 @@ def test_build_ppo_constructs_model(tmp_path: Path):
     vec_env.close()
 
 
-def test_build_ppo_uses_contra_cnn(tmp_path: Path):
+def test_build_ppo_uses_retro_cnn(tmp_path: Path):
     from retro_rl.models.cnn import RetroCNN
 
     vec_env = _make_vec_env()

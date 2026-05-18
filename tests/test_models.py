@@ -21,7 +21,7 @@ def _cnn_obs_space(c: int = 4, h: int = 84, w: int = 84) -> spaces.Box:
     return spaces.Box(low=0, high=255, shape=(c, h, w), dtype=np.uint8)
 
 
-def test_contra_cnn_forward_default_features_dim():
+def test_retro_cnn_forward_default_features_dim():
     obs_space = _cnn_obs_space()
     cnn = RetroCNN(obs_space)
     x = torch.zeros((2, 4, 84, 84), dtype=torch.uint8)
@@ -30,26 +30,26 @@ def test_contra_cnn_forward_default_features_dim():
     assert out.dtype == torch.float32
 
 
-def test_contra_cnn_custom_features_dim():
+def test_retro_cnn_custom_features_dim():
     cnn = RetroCNN(_cnn_obs_space(), features_dim=256)
     out = cnn(torch.zeros((1, 4, 84, 84), dtype=torch.uint8))
     assert out.shape == (1, 256)
 
 
-def test_contra_cnn_rejects_non_image_space():
+def test_retro_cnn_rejects_non_image_space():
     flat = spaces.Box(low=0, high=255, shape=(4 * 84 * 84,), dtype=np.uint8)
     with pytest.raises(ValueError):
         RetroCNN(flat)
 
 
-def test_contra_cnn_handles_various_frame_stack_sizes():
+def test_retro_cnn_handles_various_frame_stack_sizes():
     # Frame stack = 1 (no temporal context) should still produce features.
     cnn = RetroCNN(_cnn_obs_space(c=1))
     out = cnn(torch.zeros((1, 1, 84, 84), dtype=torch.uint8))
     assert out.shape == (1, 512)
 
 
-def test_contra_cnn_normalizes_uint8_to_float():
+def test_retro_cnn_normalizes_uint8_to_float():
     """Forward must accept uint8 input and internally cast to float32 / 255."""
     cnn = RetroCNN(_cnn_obs_space())
     x_zeros = torch.zeros((1, 4, 84, 84), dtype=torch.uint8)
@@ -59,7 +59,7 @@ def test_contra_cnn_normalizes_uint8_to_float():
     assert torch.isfinite(cnn(x_max)).all()
 
 
-def test_policy_kwargs_wires_contra_cnn():
+def test_policy_kwargs_wires_retro_cnn():
     kw = policy_kwargs(features_dim=384)
     assert kw["features_extractor_class"] is RetroCNN
     assert kw["features_extractor_kwargs"] == {"features_dim": 384}
