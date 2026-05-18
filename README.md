@@ -3,6 +3,8 @@
 Reinforcement learning agent that plays Contra (NES). PPO + CNN policy on top of [stable-retro](https://github.com/Farama-Foundation/stable-retro), with a FastAPI backend and a Streamlit dashboard.
 
 > **ROM legality** — You must supply your own legally-obtained Contra (NES) ROM. No ROM is included in this repo. Place it under `roms/` and run the import step below.
+>
+> **Don't have a Contra ROM yet?** The env layer + smoke tests can be validated against **Airstriker (Genesis)**, a freely-distributable homebrew that ships with `stable-retro` (zero extra download). Use `configs/env-airstriker.yaml` instead of `configs/env.yaml` until you can dump your own Contra cartridge. The only clean path to a legal Contra ROM is to dump a cart you own with hardware like the Retrode 2 or INL Retro Dumper.
 
 ---
 
@@ -12,6 +14,11 @@ Reinforcement learning agent that plays Contra (NES). PPO + CNN policy on top of
 # 1. Install
 python -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"
+
+# 1a. Apple Silicon / macOS only — stable-retro needs a source-build patch.
+#     See docs/environment.md for the why.
+brew install cmake pkg-config
+./scripts/install_stable_retro_macos.sh
 
 # 2. Import your ROM (one-time)
 cp /path/to/your/Contra.nes roms/
