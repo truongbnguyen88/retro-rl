@@ -44,13 +44,15 @@ Status legend: `[ ]` todo · `[~]` in progress · `[x]` done · `[!]` blocked
 - [x] `tests/test_agents.py`: **11 passed** — RandomAgent (predict shapes, reproducibility, save/load, Protocol conformance), PPO factory (construction, CNN wiring, policy gate, predict, save/load roundtrip), linear schedule
 - [x] `conftest.py`: top-level pytest hook adding `src/` to `sys.path` — workaround for macOS auto-applying `UF_HIDDEN` to venv `.pth` files (CPython 3.12.5+ skips hidden `.pth` for security)
 
-## Milestone 3 — Training pipeline
+## Milestone 3 — Training pipeline ✅
 
-- [ ] `training/callbacks.py`: TB logging, periodic eval, video recording on eval, checkpoint manager (last-K + best)
-- [ ] `training/checkpoint.py`: atomic save (tmp + rename), metadata sidecar (config snapshot, step, eval return)
-- [ ] `training/trainer.py`: build env → build agent → fit loop with callbacks → final eval; resume-from-checkpoint
-- [ ] `scripts/train.py`: argparse CLI, loads config, dispatches to trainer
-- [ ] Smoke: 10k-step run on Airstriker completes; checkpoint + TB + video produced
+- [x] `training/checkpoint.py`: `CheckpointManager` — atomic save (tmp + `os.replace`), JSON sidecar (`run_name`, `step`, `eval_return`, `kind`, `config_snapshot_path`, `timestamp`), last-K pruning (best excluded), best-tracker restored from disk on init
+- [x] `training/callbacks.py`: `PeriodicCheckpointCallback` (rotates step ckpts) + `EvalAndVideoCallback` (deterministic rollouts, TB scalars `eval/{mean_return,std_return,mean_length}`, mp4 of first episode per cycle, updates best via manager)
+- [x] `training/trainer.py`: `train(cfg, resume_from=None) -> Path` — config snapshot, SubprocVecEnv (always, even at `n_envs=1`), `build_ppo` or `PPO.load`, callback wiring, final ckpt save, returns best (or latest)
+- [x] `scripts/train.py`: argparse CLI — `--config`, `--resume`
+- [x] `configs/ppo_smoke.yaml`: extends `ppo.yaml`; `total_timesteps=10000`, `n_envs=1`, eval every 2500, ckpt every 5000
+- [x] `tests/test_training.py`: **14 passed** — CheckpointManager unit tests (atomic, sidecar, best-tracking, last-K rotation, restore from disk)
+- [x] Smoke acceptance: `python scripts/train.py --config configs/ppo_smoke.yaml` completes; `outputs/checkpoints/ppo_airstriker_smoke/{best,step-*}.{zip,json}` + `outputs/tensorboard/ppo_airstriker_smoke_*/events.*` + `outputs/videos/ppo_airstriker_smoke/eval-step-*.mp4` all produced
 
 ## Milestone 4 — Evaluation
 
@@ -88,13 +90,14 @@ Status legend: `[ ]` todo · `[~]` in progress · `[x]` done · `[!]` blocked
 
 ## Currently in flight
 
-_None — Milestone 2 landed + project pivoted to Airstriker / `retro-rl`. Ready to pick Milestone 3._
+_None — Milestone 3 landed. Ready to pick Milestone 4._
 
 ## Next up (queue)
 
-1. Milestone 3 — training pipeline (Airstriker smoke target)
-2. Milestone 4 — evaluation
+1. Milestone 4 — evaluation (richer metrics, eval CLI, video writer extraction)
+2. Real training run (`python scripts/train.py --config configs/ppo.yaml`) — 2M steps, kickoff anytime after M3; can run in background while M5/M6 develop against intermediate checkpoints
 3. Milestone 5 — backend
+4. Milestone 6 — frontend
 
 ## Decisions log
 
@@ -106,3 +109,7 @@ _None — Milestone 2 landed + project pivoted to Airstriker / `retro-rl`. Ready
 - 2026-05-18 — Milestone 2: chose a `policy_kwargs(features_dim)` helper over a custom `ActorCriticPolicy` subclass. Rationale: SB3's `CnnPolicy` already does everything we need once the feature extractor is plugged in; a subclass would only duplicate plumbing. Revisit when a second policy variant (e.g. recurrent) lands. Also chose `typing.Protocol` for `agents/base.py` over an ABC — both SB3 PPO and our `RandomAgent` conform structurally without forcing SB3 into a custom hierarchy.
 - 2026-05-18 — macOS auto-hides files in `.venv/lib/.../site-packages/` (sets `UF_HIDDEN` via `xattr com.apple.provenance` + some background daemon). CPython 3.12.5+ skips hidden `.pth` files for security, which breaks the editable install repeatedly even after `chflags nohidden`. Worked around with a top-level `conftest.py` that adds `src/` to `sys.path` directly. Future: investigate whether a launch agent / Spotlight indexer is responsible; for now the conftest is the durable fix for tests, and prod scripts run via `python -m` from the repo root pick up `src/` via cwd.
 - 2026-05-18 — **Pivot: project renamed `contra-rl` → `retro-rl`; default target is Airstriker (Genesis), not Contra (NES).** Rationale: no legal path to a Contra ROM available to the user; Airstriker ships free with stable-retro and the entire architecture is already game-agnostic via `info_keys` + config-driven reward shaping. Full rename executed (Python pkg `contra_rl`→`retro_rl`, `ContraCNN`→`RetroCNN`, `make_contra_env`→`make_retro_env`, `configs/env.yaml` now Airstriker, `total_timesteps` reduced 10M→2M for the simpler target). Repo directory + git remote name left unchanged (orthogonal to the code rename; user can update those externally if/when desired).
+- 2026-05-18 — M3: trainer always uses `SubprocVecEnv` (even at `n_envs=1`), not `DummyVecEnv`. Rationale: stable-retro hard-limits one emulator per process; if the train emulator lives in the main process, the eval-callback's lazy emulator construction fails with `RuntimeError("Cannot create multiple emulator instances per process")`. SubprocVecEnv puts the train emulator(s) in workers, leaving the main process free for eval. IPC cost at `n_envs=1` is negligible vs env stepping.
+- 2026-05-18 — M3: chose thin custom callbacks wrapping `BaseCallback` over SB3's built-in `CheckpointCallback`/`EvalCallback`. Rationale: atomic save (tmp + `os.replace`) + JSON sidecar metadata + best-tracking owned by our `CheckpointManager` (decoupled from SB3 internals). Cost is ~150 LOC of glue; benefit is reproducibility and a clean handoff to the backend in M5 (sidecars are the API).
+- 2026-05-18 — M3: known cosmetic issue — stable-retro subproc workers raise `AttributeError: 'CocoaAlternateEventLoop' object has no attribute 'platform_event_loop'` during shutdown (pyglet teardown on macOS). Happens AFTER training success is logged and parent exits 0; does not affect outputs. Upstream pyglet/stable-retro interaction; documented and deferred. Revisit if it ever causes a non-zero exit or blocks CI.
+- 2026-05-18 — M3: known stale editable install — `.venv/lib/.../site-packages/__editable__.contra_rl-0.0.1.pth` lingers from pre-rename install and points at a non-existent `contra-rl/src` path. Tests work via `conftest.py` (`sys.path` shim); scripts need `PYTHONPATH=src` until `pip install -e .` is re-run. Fix is one command but orthogonal to M3 — flagged for the user to refresh at convenience.

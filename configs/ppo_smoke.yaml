@@ -1,0 +1,22 @@
+# 10k-step smoke run for the M3 acceptance check.
+# Inherits everything from ppo.yaml; overrides the knobs that matter for a
+# short integration test: fewer steps, single env, fast eval + ckpt cadence.
+# n_envs=1 still runs under SubprocVecEnv (see trainer.py module docstring)
+# so the eval emulator can co-exist with the train emulator.
+
+extends: configs/ppo.yaml
+
+run_name: ppo_airstriker_smoke
+n_envs: 1
+total_timesteps: 10000
+
+eval:
+  every_steps: 2500
+  n_episodes: 1
+  deterministic: true
+  record_video: true
+
+checkpoint:
+  every_steps: 5000
+  keep_last_k: 3
+  keep_best: true
