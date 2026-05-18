@@ -1,4 +1,4 @@
-# CLAUDE.md — contra-rl
+# CLAUDE.md — retro-rl
 
 Operational guide for working in this repo. Token-efficient by design; expand only what's load-bearing.
 
@@ -6,22 +6,22 @@ Operational guide for working in this repo. Token-efficient by design; expand on
 
 ## What this repo is
 
-RL agent that plays Contra (NES). Backend trains and serves the agent; frontend visualizes training + agent play. Backend and frontend communicate **only over the REST API** — never import across that boundary.
+RL agent that plays stable-retro games. Default target: **Airstriker (Genesis)** — a freely-distributable homebrew shooter that ships with the stable-retro distribution, so no separate ROM step. Backend trains and serves the agent; frontend visualizes training + agent play. Backend and frontend communicate **only over the REST API** — never import across that boundary.
 
 ---
 
 ## Architecture (one-liner per layer)
 
 ```
-ROM ──► stable-retro env ──► wrappers (preprocess + reward shaping) ──► VecEnv
-                                                                          │
-                                                                          ▼
-                                                                   SB3 PPO + CNN policy
-                                                                          │
-                       checkpoints, TB logs, eval videos ◄─────────────── │
-                                       │
-                                       ▼
-                              FastAPI backend  ◄── HTTP ──  Streamlit frontend
+stable-retro env ──► wrappers (preprocess + reward shaping) ──► VecEnv
+                                                                  │
+                                                                  ▼
+                                                           SB3 PPO + CNN policy
+                                                                  │
+              checkpoints, TB logs, eval videos ◄───────────────  │
+                               │
+                               ▼
+                      FastAPI backend  ◄── HTTP ──  Streamlit frontend
 ```
 
 ---
@@ -30,18 +30,18 @@ ROM ──► stable-retro env ──► wrappers (preprocess + reward shaping) 
 
 | Path | Responsibility | Imports from |
 |------|---------------|--------------|
-| `src/contra_rl/env/`        | Env construction + wrappers + reward shaping | `utils/` only |
-| `src/contra_rl/models/`     | CNN feature extractors, policy heads          | nothing internal |
-| `src/contra_rl/agents/`     | Algorithm wrappers (PPO, baselines)           | `models/`, `utils/` |
-| `src/contra_rl/training/`   | Trainer, callbacks, checkpoint manager        | `env/`, `agents/`, `utils/` |
-| `src/contra_rl/evaluation/` | Eval rollouts, metrics, video recording       | `env/`, `agents/`, `utils/` |
-| `src/contra_rl/backend/`    | FastAPI app                                   | all above (read-only consumer) |
-| `src/contra_rl/utils/`      | config, logging, seeding, video               | nothing internal |
-| `frontend/`                 | Streamlit dashboard                           | **only** backend HTTP API |
-| `configs/`                  | YAML hyperparams + env config                 | — |
-| `scripts/`                  | CLI entrypoints (`train.py`, `evaluate.py`, `play.py`, `serve.py`) | `src/contra_rl/` |
-| `outputs/`                  | run artifacts: checkpoints, TB, videos        | gitignored |
-| `roms/`                     | user-supplied NES ROM (gitignored, legal)     | — |
+| `src/retro_rl/env/`        | Env construction + wrappers + reward shaping | `utils/` only |
+| `src/retro_rl/models/`     | CNN feature extractors, policy heads          | nothing internal |
+| `src/retro_rl/agents/`     | Algorithm wrappers (PPO, baselines)           | `models/`, `utils/` |
+| `src/retro_rl/training/`   | Trainer, callbacks, checkpoint manager        | `env/`, `agents/`, `utils/` |
+| `src/retro_rl/evaluation/` | Eval rollouts, metrics, video recording       | `env/`, `agents/`, `utils/` |
+| `src/retro_rl/backend/`    | FastAPI app                                   | all above (read-only consumer) |
+| `src/retro_rl/utils/`      | config, logging, seeding, video               | nothing internal |
+| `frontend/`                | Streamlit dashboard                           | **only** backend HTTP API |
+| `configs/`                 | YAML hyperparams + env config                 | — |
+| `scripts/`                 | CLI entrypoints (`train.py`, `evaluate.py`, `play.py`, `serve.py`) | `src/retro_rl/` |
+| `outputs/`                 | run artifacts: checkpoints, TB, videos        | gitignored |
+| `roms/`                    | user-supplied ROMs (gitignored; not needed for Airstriker) | — |
 
 **Dependency rule (enforce):** the table is acyclic top-to-bottom; `utils/` is a leaf. If you add a module, place it so no upward import is needed.
 
@@ -49,13 +49,14 @@ ROM ──► stable-retro env ──► wrappers (preprocess + reward shaping) 
 
 ## Key design decisions
 
-- **PPO over DQN** for the default. Contra has long horizons + visual input + sparse-ish rewards after shaping → on-policy + advantage estimation is more stable to tune. DQN remains a registered baseline.
-- **Reward shaping is explicit and config-driven** (`configs/env.yaml`). Components: score delta, x-progress, life loss, death, stage clear. Each weight is a knob; never hardcode in code.
-- **Frame stack = 4, gray 84×84, action repeat = 4** — standard Atari preprocessing. Justified by Contra's frame rate and the need for temporal context (bullets, jumps).
+- **PPO over DQN** for the default. On-policy + advantage estimation is more stable to tune for visual input with the reward shapes we use. DQN remains a candidate baseline.
+- **Reward shaping is explicit and config-driven** (`configs/env.yaml`). Components: score delta, x-progress (disabled for vertical-scroll games), life loss, death, stage clear. Each weight is a knob; never hardcode in code.
+- **Frame stack = 4, gray 84×84, action repeat = 4** — standard Atari preprocessing. Justified by Airstriker's frame rate and the need for temporal context (projectiles, motion direction).
 - **Vectorized envs** (SB3 `SubprocVecEnv`, n=8 default) for throughput. PPO needs many parallel rollouts per update.
 - **Checkpoint cadence**: every N env steps, keep last-K + best-by-eval-return. Atomic write (tmp + rename).
 - **Eval is deterministic** (`deterministic=True` in PPO predict, fixed seed list). Train uses stochastic policy.
 - **Frontend never imports backend code.** It calls `http://localhost:8000/...`. This is the seam.
+- **Custom feature extractor is `RetroCNN`**, not SB3's `NatureCNN`. Same architecture; ours exposes `features_dim` as a config knob and lets us swap in LSTM/attention heads later without re-plumbing PPO.
 
 ---
 
@@ -65,18 +66,26 @@ ROM ──► stable-retro env ──► wrappers (preprocess + reward shaping) 
 - All config is YAML → pydantic model (`utils/config.py`). No magic strings, no hardcoded paths.
 - Logging via `utils/logging.py` (structured). Never `print` in library code.
 - Seeds: thread `seed: int` from config → env, numpy, torch, python random. One helper: `utils/seeding.py:set_global_seed`.
-- Tests live in `tests/`, mirror `src/contra_rl/` layout. Pytest. Mock the env when the test isn't about env behavior.
+- Tests live in `tests/`, mirror `src/retro_rl/` layout. Pytest. Mock the env when the test isn't about env behavior.
 - No notebooks in `src/`. Notebooks are for exploration only.
 
 ---
 
-## Environment specifics (Contra NES)
+## Environment specifics (Airstriker, Genesis)
 
-- Game ID in stable-retro: `Contra-Nes` (must run `python -m retro.import roms/` once after placing the ROM).
-- Action space: discrete, ~12 useful combos (movement × jump × shoot). Use stable-retro's `Discrete` action setup, not multi-binary, unless we need crouch-shoot timing.
-- Observation: 240×256×3 → wrapper → 84×84×1 grayscale → stack 4.
-- Default training target: **Stage 1 (jungle, side-scroll)**. Stages 2/3 are top-down and need a different reward shaping pass.
-- Episode end: death (configurable: end on first death vs. exhaust all lives) or stage clear.
+- Game ID in stable-retro: `Airstriker-Genesis-v0`. ROM ships with `stable-retro` at `<site-packages>/stable_retro/data/stable/Airstriker-Genesis-v0/`; no import step required.
+- Action space: discrete (~12 combos via stable-retro's default discretizer).
+- Observation: 224×320×3 → wrapper → 84×84×1 grayscale → stack 4.
+- Episode end: death (configurable: end on first life-loss vs. exhaust all lives) or hitting `max_episode_steps`.
+- Vertical scroll, so `x_progress` shaping is disabled (weight=0) and `info_keys["x_pos"]` points at a missing key (yields 0 contribution + one warning).
+
+### Pointing at a different stable-retro game
+
+1. Update `configs/env.yaml`: `game`, `state`, `scenario`, and `info_keys` to match the new integration's `data.json`.
+2. Re-tune the reward weights in `reward:`. Side-scrollers will want `x_progress > 0`.
+3. Sanity-check with `python scripts/play_random.py --config configs/env.yaml`.
+
+No code changes needed for a game swap — the env layer is generic.
 
 ---
 
@@ -84,8 +93,10 @@ ROM ──► stable-retro env ──► wrappers (preprocess + reward shaping) 
 
 ```bash
 # Setup
-pip install -e .                              # editable install (uses pyproject.toml)
-python -m retro.import roms/                  # import Contra ROM (one-time)
+pip install -e .                              # editable install
+
+# Sanity-check the env (opens a viewer window)
+python scripts/play_random.py --config configs/env.yaml
 
 # Train
 python scripts/train.py --config configs/ppo.yaml
@@ -127,6 +138,6 @@ streamlit run frontend/app.py                 # Streamlit on :8501
 
 ## Open questions / risks (live list)
 
-- ROM legality: user must supply. Document in README; never ship one.
-- stable-retro Contra integration may need a custom `data.json` / `scenario.json` if the default reward signal is too sparse. Check before training and document the path in `docs/environment.md`.
-- Throughput on Apple Silicon: stable-retro is CPU-bound for env stepping. Profile early; if blocking, reduce n_envs or use a Linux box.
+- Throughput on Apple Silicon: stable-retro is CPU-bound for env stepping. Profile early; if blocking, reduce `n_envs` or use a Linux box.
+- Airstriker's reward signal may be too sparse for raw score-delta shaping. If learning curves stall, revisit `configs/env.yaml` and consider rewarding enemy kills directly if the integration exposes a kill counter.
+- macOS auto-sets `UF_HIDDEN` on files in `.venv/lib/.../site-packages/`, which CPython 3.12.5+ skips for security. The top-level `conftest.py` works around this for tests; production scripts run from the repo root pick up `src/` via cwd.

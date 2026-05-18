@@ -22,7 +22,7 @@ _FILE_FMT = "%(asctime)s %(levelname)-7s %(name)s | %(message)s"
 
 
 def get_logger(
-    name: str = "contra_rl",
+    name: str = "retro_rl",
     run_dir: Path | None = None,
     level: str = "INFO",
 ) -> logging.Logger:

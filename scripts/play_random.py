@@ -6,21 +6,17 @@ doesn't slow CI.
 
 Usage
 -----
-    # Airstriker (works on any clean install)
-    python scripts/play_random.py --config configs/env-airstriker.yaml
-
-    # Contra (after you've dumped + imported the ROM)
-    python scripts/play_random.py --config configs/env.yaml --episodes 3
+    # Default config (Airstriker)
+    python scripts/play_random.py --config configs/env.yaml
 
     # Headless smoke (e.g., from a script) — no window, max throughput
-    python scripts/play_random.py --config configs/env-airstriker.yaml --no-render --fps 0
+    python scripts/play_random.py --config configs/env.yaml --no-render --fps 0
 
 Notes
 -----
-* Default FPS is 15 — matches NES native rate post action-repeat (60Hz / 4).
+* Default FPS is 15 — matches native rate post action-repeat (60Hz / 4).
 * Random agent typically dies within 5-30 seconds per episode; with
-  ``end_on_life_lost=true`` (the default for Airstriker/Contra configs),
-  one life lost ends the episode.
+  ``end_on_life_lost=true`` (the default), one life lost ends the episode.
 * This is a *visual* check, not a benchmark. Throughput is throttled to FPS.
 """
 
@@ -30,8 +26,8 @@ import argparse
 import time
 from pathlib import Path
 
-from contra_rl.env import make_env
-from contra_rl.utils import get_logger, load_env_config, set_global_seed
+from retro_rl.env import make_env
+from retro_rl.utils import get_logger, load_env_config, set_global_seed
 
 
 def main() -> None:

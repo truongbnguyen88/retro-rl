@@ -1,3 +1,3 @@
-"""contra-rl: PPO agent for Contra (NES). See CLAUDE.md for the module map."""
+"""retro-rl: PPO agent for stable-retro games (default: Airstriker-Genesis-v0)."""
 
 __version__ = "0.0.1"

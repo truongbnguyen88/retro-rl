@@ -1,10 +1,8 @@
-# contra-rl
+# retro-rl
 
-Reinforcement learning agent that plays Contra (NES). PPO + CNN policy on top of [stable-retro](https://github.com/Farama-Foundation/stable-retro), with a FastAPI backend and a Streamlit dashboard.
+Reinforcement learning agent for [stable-retro](https://github.com/Farama-Foundation/stable-retro) games. PPO + CNN policy with a FastAPI backend and a Streamlit dashboard. Default target: **Airstriker (Genesis)** — a freely-distributable homebrew shooter that ships with stable-retro, so no separate ROM step is needed.
 
-> **ROM legality** — You must supply your own legally-obtained Contra (NES) ROM. No ROM is included in this repo. Place it under `roms/` and run the import step below.
->
-> **Don't have a Contra ROM yet?** The env layer + smoke tests can be validated against **Airstriker (Genesis)**, a freely-distributable homebrew that ships with `stable-retro` (zero extra download). Use `configs/env-airstriker.yaml` instead of `configs/env.yaml` until you can dump your own Contra cartridge. The only clean path to a legal Contra ROM is to dump a cart you own with hardware like the Retrode 2 or INL Retro Dumper.
+> **Pointing at a different game?** The env layer is config-driven — swap `configs/env.yaml`'s `game`, `state`, and `info_keys` and everything downstream (wrappers, CNN, PPO) works unchanged. ROM legality is the user's responsibility.
 
 ---
 
@@ -20,17 +18,16 @@ pip install -e ".[dev]"
 brew install cmake pkg-config
 ./scripts/install_stable_retro_macos.sh
 
-# 2. Import your ROM (one-time)
-cp /path/to/your/Contra.nes roms/
-python -m retro.import roms/
+# 2. Sanity-check the env (opens a viewer window; random-action rollout)
+python scripts/play_random.py --config configs/env.yaml
 
-# 3. Train
+# 3. Train  (Milestone 3 — coming up)
 python scripts/train.py --config configs/ppo.yaml
 
-# 4. Watch the agent
+# 4. Watch the trained agent  (Milestone 3)
 python scripts/play.py --checkpoint outputs/checkpoints/<run>/best.zip
 
-# 5. Dashboard
+# 5. Dashboard  (Milestones 5-6)
 python scripts/serve.py            # backend on :8000
 streamlit run frontend/app.py      # dashboard on :8501
 ```
@@ -41,7 +38,7 @@ streamlit run frontend/app.py      # dashboard on :8501
 
 See [CLAUDE.md](CLAUDE.md) for the full module map and dependency rules. The short version:
 
-- `src/contra_rl/` — Python package (env, models, agents, training, evaluation, backend, utils)
+- `src/retro_rl/` — Python package (env, models, agents, training, evaluation, backend, utils)
 - `frontend/` — Streamlit dashboard (talks to backend over HTTP only)
 - `configs/` — YAML hyperparameters
 - `scripts/` — CLI entrypoints
@@ -51,4 +48,4 @@ See [CLAUDE.md](CLAUDE.md) for the full module map and dependency rules. The sho
 
 ## Status
 
-See [TASKS.md](TASKS.md) for milestone tracking. Currently: scaffolding complete; environment layer up next.
+See [TASKS.md](TASKS.md) for milestone tracking. Currently: env layer + models + agents (Milestones 1–2) complete; training pipeline (Milestone 3) is next.

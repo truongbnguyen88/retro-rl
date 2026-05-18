@@ -1,6 +1,6 @@
-"""contra_rl.utils — see CLAUDE.md for responsibilities."""
+"""retro_rl.utils — see CLAUDE.md for responsibilities."""
 
-from contra_rl.utils.config import (
+from retro_rl.utils.config import (
     CheckpointConfig,
     EnvConfig,
     EvalConfig,
@@ -10,8 +10,8 @@ from contra_rl.utils.config import (
     load_env_config,
     load_train_config,
 )
-from contra_rl.utils.logging import get_logger
-from contra_rl.utils.seeding import set_global_seed
+from retro_rl.utils.logging import get_logger
+from retro_rl.utils.seeding import set_global_seed
 
 __all__ = [
     "CheckpointConfig",

@@ -52,12 +52,12 @@ class RewardConfig(BaseModel):
 
 
 class EnvConfig(BaseModel):
-    """Contra env configuration consumed by :func:`contra_rl.env.make_env`."""
+    """Stable-retro env configuration consumed by :func:`retro_rl.env.make_env`."""
 
     model_config = ConfigDict(extra="forbid")
 
     # stable-retro identifiers
-    game: str = "Contra-Nes"
+    game: str = "Airstriker-Genesis-v0"
     state: str = "Level1"
     scenario: str = "scenario"
     record: bool = False
@@ -77,8 +77,8 @@ class EnvConfig(BaseModel):
     reward: RewardConfig = Field(default_factory=RewardConfig)
 
     # Per-integration override for stable-retro info dict keys.
-    # None → use contra_rl.env.reward_shaping.DEFAULT_INFO_KEYS (Contra layout).
-    # Set per game when validating against a different integration (e.g., Airstriker).
+    # None → use retro_rl.env.reward_shaping.DEFAULT_INFO_KEYS (generic).
+    # Set per game to match the integration's data.json variable names.
     info_keys: dict[str, str] | None = None
 
     @field_validator("resize", mode="before")

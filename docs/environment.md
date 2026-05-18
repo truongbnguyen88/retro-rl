@@ -46,59 +46,48 @@ Verified on macOS 26 (Tahoe) + Apple Silicon + Python 3.12.
 
 ```bash
 python -c "import retro; print(retro.data.get_romfile_path('Airstriker-Genesis-v0'))"
-pytest tests/test_env.py -v   # expect 17 passed, 1 skipped (Contra ROM-gated)
+pytest tests/test_env.py -v   # expect green
 ```
 
 ## ROM acquisition
 
-See [README.md](../README.md) for the legality discussion. Short version:
+**Airstriker (Genesis)** — the default target — ships with stable-retro at
+`<site-packages>/stable_retro/data/stable/Airstriker-Genesis-v0/rom.md`. It's
+freely distributable; nothing to download. The repo's `configs/env.yaml`
+points at it out of the box.
 
-- **Contra (NES)**: dump your own cartridge with a Retrode 2 / INL Retro Dumper.
-  No clean alternative.
-- **Airstriker (Genesis)**: ships with stable-retro at
-  `<site-packages>/stable_retro/data/stable/Airstriker-Genesis-v0/rom.md`,
-  freely distributable. Used as the validation stand-in via
-  [configs/env-airstriker.yaml](../configs/env-airstriker.yaml).
-
-After placing `Contra.nes` (or any NES ROM matching stable-retro's expected
-SHA-1) in `roms/`:
+**User-supplied ROMs.** If you want to point this codebase at a game whose ROM
+you legally own, dump the cartridge with hardware like the Retrode 2 or
+INL Retro Dumper, then:
 
 ```bash
+cp /path/to/your/ROM.ext roms/
 python -m retro.import roms/
-python -c "import retro; print(retro.data.get_romfile_path('Contra-Nes'))"
+python -c "import retro; print(retro.data.get_romfile_path('<game-id>'))"
 ```
 
-The smoke test [`test_make_env_contra_smoke`](../tests/test_env.py) will pick
-it up automatically. Note: in stable-retro 1.x the integration may be named
-`Contra-Nes-v0` — verify with `retro.data.list_games()` and update
-`configs/env.yaml` if so.
+Update `configs/env.yaml` with the new `game`, `state`, and `info_keys` (see
+the integration's `data.json` at
+`<site-packages>/stable_retro/data/stable/<game>/data.json`).
 
-## Reward shaping caveats (to verify post-ROM)
+## Reward shaping caveats
 
 The shaping function in
-[src/contra_rl/env/reward_shaping.py](../src/contra_rl/env/reward_shaping.py)
-reads from the `info` dict produced by stable-retro's integration. The
-expected key names (`score`, `xpos`, `lives`, `stage_clear`) are best-effort
-defaults — when you first run training, watch for one-shot warnings like:
+[src/retro_rl/env/reward_shaping.py](../src/retro_rl/env/reward_shaping.py)
+reads from the `info` dict produced by stable-retro's integration. Per-game
+key names live in `configs/env.yaml` under `info_keys:`. On the first step,
+any missing key emits a one-shot WARNING:
 
 ```
-WARNING contra_rl.env.reward_shaping: info key 'xpos' not present; corresponding term will be zero.
+WARNING retro_rl.env.reward_shaping: info key 'x_pos' not present; corresponding term will be zero.
 ```
 
-That means stable-retro's Contra integration uses a different key name in
-its `data.json`. Fix by overriding `info_keys` in `configs/env.yaml`:
+That's expected for Airstriker (vertical scroll, no `x_pos` variable). For
+a new game, watch these warnings and fix the mapping in `configs/env.yaml`.
 
-```yaml
-info_keys:
-  score: score_p1     # whatever the integration actually exposes
-  x_pos: x
-  lives: lives
-  stage_clear: cleared
-```
-
-To discover the actual keys, run a few steps and print `info.keys()`. The
-integration's `data.json` lives at
-`<site-packages>/stable_retro/data/stable/<game>/data.json`.
+To discover the actual keys, run a few steps via
+`scripts/play_random.py --config configs/env.yaml` and print `info.keys()`,
+or inspect the integration's `data.json` directly.
 
 ## Known minor issue: pyglet teardown on macOS
 

@@ -15,8 +15,8 @@ import numpy as np
 import pytest
 from gymnasium import spaces
 
-from contra_rl.env.reward_shaping import ShapingState, shape_reward
-from contra_rl.env.wrappers import (
+from retro_rl.env.reward_shaping import ShapingState, shape_reward
+from retro_rl.env.wrappers import (
     ActionRepeat,
     EndOnLifeLost,
     FrameStack,
@@ -25,8 +25,8 @@ from contra_rl.env.wrappers import (
     StickyAction,
     apply_wrappers,
 )
-from contra_rl.utils.config import EnvConfig, RewardConfig, load_env_config
-from contra_rl.utils.seeding import set_global_seed
+from retro_rl.utils.config import EnvConfig, RewardConfig, load_env_config
+from retro_rl.utils.seeding import set_global_seed
 
 
 # ---------------------------------------------------------------------------
@@ -34,7 +34,7 @@ from contra_rl.utils.seeding import set_global_seed
 # ---------------------------------------------------------------------------
 
 
-class FakeContraEnv(gym.Env):
+class FakeRetroEnv(gym.Env):
     """Tiny env: 240x256x3 uint8 obs, 8 discrete actions, scripted info."""
 
     metadata = {"render_modes": []}
@@ -84,11 +84,14 @@ class FakeContraEnv(gym.Env):
 
 def test_load_env_config_from_repo_yaml():
     cfg = load_env_config(Path("configs/env.yaml"))
-    assert cfg.game == "Contra-Nes"
+    assert cfg.game == "Airstriker-Genesis-v0"
     assert cfg.resize == (84, 84)
     assert cfg.frame_stack == 4
     assert cfg.action_repeat == 4
     assert cfg.reward.clip == (-10.0, 10.0)
+    # Airstriker-specific info-key override is wired through.
+    assert cfg.info_keys is not None
+    assert cfg.info_keys["score"] == "score"
 
 
 def test_env_config_validation_rejects_unknown_field():
@@ -177,7 +180,7 @@ def test_shape_reward_missing_key_does_not_raise():
 
 
 def test_action_repeat_sums_reward_and_maxpools():
-    env = ActionRepeat(FakeContraEnv(episode_len=100), skip=4)
+    env = ActionRepeat(FakeRetroEnv(episode_len=100), skip=4)
     obs, _ = env.reset(seed=0)
     next_obs, reward, term, trunc, info = env.step(3)
     # Fake env returns 0 reward per step; sum still 0.0.
@@ -187,7 +190,7 @@ def test_action_repeat_sums_reward_and_maxpools():
 
 
 def test_grayscale_resize_observation_space_and_dtype():
-    env = GrayscaleResize(FakeContraEnv(), size=(84, 84))
+    env = GrayscaleResize(FakeRetroEnv(), size=(84, 84))
     obs, _ = env.reset(seed=0)
     assert obs.shape == (84, 84, 1)
     assert obs.dtype == np.uint8
@@ -195,7 +198,7 @@ def test_grayscale_resize_observation_space_and_dtype():
 
 
 def test_frame_stack_shape():
-    env = GrayscaleResize(FakeContraEnv(), size=(84, 84))
+    env = GrayscaleResize(FakeRetroEnv(), size=(84, 84))
     env = FrameStack(env, n=4)
     obs, _ = env.reset(seed=0)
     assert obs.shape == (84, 84, 4)
@@ -205,8 +208,8 @@ def test_frame_stack_shape():
 
 
 def test_end_on_life_lost_truncates_episode():
-    # FakeContraEnv decrements lives at t == episode_len // 2.
-    env = EndOnLifeLost(FakeContraEnv(episode_len=10))
+    # FakeRetroEnv decrements lives at t == episode_len // 2.
+    env = EndOnLifeLost(FakeRetroEnv(episode_len=10))
     env.reset(seed=0)
     terminated = False
     for _ in range(20):
@@ -217,10 +220,10 @@ def test_end_on_life_lost_truncates_episode():
 
 
 def test_sticky_action_repeats_with_prob_1():
-    env = StickyAction(FakeContraEnv(), p=1.0)
+    env = StickyAction(FakeRetroEnv(), p=1.0)
     env.reset(seed=0)
     # First step records action; subsequent steps should always re-use it
-    # regardless of what we pass — observable via FakeContraEnv's score delta
+    # regardless of what we pass — observable via FakeRetroEnv's score delta
     # (== action). After the first step, score should grow by the first action
     # each step.
     _, _, _, _, info0 = env.step(7)
@@ -238,7 +241,7 @@ def test_reward_shaping_wrapper_adds_to_native_reward():
         death=0.0,
         clip=(-1000.0, 1000.0),
     )
-    env = RewardShapingWrapper(FakeContraEnv(), cfg)
+    env = RewardShapingWrapper(FakeRetroEnv(), cfg)
     env.reset(seed=0)
     # First step seeds prev_* state; shaped reward is 0 because there's no
     # prior frame to diff against. Step again to observe the actual delta.
@@ -258,7 +261,7 @@ def test_apply_wrappers_end_to_end_shape():
         max_episode_steps=20,
         end_on_life_lost=False,
     )
-    env = apply_wrappers(FakeContraEnv(episode_len=1000), cfg)
+    env = apply_wrappers(FakeRetroEnv(episode_len=1000), cfg)
     obs, _ = env.reset(seed=0)
     assert obs.shape == (84, 84, 4)
     assert obs.dtype == np.uint8
@@ -275,8 +278,8 @@ def test_apply_wrappers_seeded_determinism():
         end_on_life_lost=False,
         sticky_action_prob=0.0,
     )
-    env_a = apply_wrappers(FakeContraEnv(episode_len=1000), cfg)
-    env_b = apply_wrappers(FakeContraEnv(episode_len=1000), cfg)
+    env_a = apply_wrappers(FakeRetroEnv(episode_len=1000), cfg)
+    env_b = apply_wrappers(FakeRetroEnv(episode_len=1000), cfg)
     obs_a, _ = env_a.reset(seed=42)
     obs_b, _ = env_b.reset(seed=42)
     np.testing.assert_array_equal(obs_a, obs_b)
@@ -305,13 +308,13 @@ def _rom_available(game: str) -> bool:
 def test_make_env_airstriker_smoke():
     """End-to-end smoke against Airstriker — the ROM ships with stable-retro,
     so this runs unconditionally on any clean install."""
-    retro = pytest.importorskip("retro")
+    pytest.importorskip("retro")
     if not _rom_available("Airstriker-Genesis-v0"):
         pytest.skip("Airstriker-Genesis-v0 ROM not found in stable-retro data dir")
 
-    from contra_rl.env import make_env
+    from retro_rl.env import make_env
 
-    cfg = load_env_config(Path("configs/env-airstriker.yaml"))
+    cfg = load_env_config(Path("configs/env.yaml"))
     env = make_env(cfg, seed=0)
     obs, info = env.reset(seed=0)
     assert obs.shape[-1] == cfg.frame_stack  # channels-last stack
@@ -329,25 +332,3 @@ def test_make_env_airstriker_smoke():
         env.close()
     except AttributeError:
         pass
-
-
-@pytest.mark.rom
-@pytest.mark.skipif(not _rom_available("Contra-Nes"), reason="Contra ROM not imported")
-def test_make_env_contra_smoke():
-    """Same shape as the Airstriker smoke — runs only if the user has dumped
-    and imported a Contra ROM. Validates the production target."""
-    from contra_rl.env import make_env
-
-    cfg = load_env_config(Path("configs/env.yaml"))
-    env = make_env(cfg, seed=0)
-    obs, info = env.reset(seed=0)
-    assert obs.shape[-1] == cfg.frame_stack
-    assert obs.dtype == np.uint8
-    for _ in range(10):
-        obs, reward, terminated, truncated, info = env.step(env.action_space.sample())
-        if terminated or truncated:
-            break
-    try:
-        env.close()
-    except AttributeError:
-        pass  # pyglet 1.5 Cocoa teardown bug on macOS; see Airstriker test

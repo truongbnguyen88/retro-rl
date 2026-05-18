@@ -3,9 +3,9 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "contra-rl"
+name = "retro-rl"
 version = "0.0.1"
-description = "Reinforcement learning agent that plays Contra (NES)"
+description = "Reinforcement learning agent for stable-retro games (default: Airstriker-Genesis-v0)"
 readme = "README.md"
 requires-python = ">=3.11"
 authors = [{ name = "truongbnguyen88" }]
@@ -70,6 +70,5 @@ target-version = ["py311"]
 testpaths = ["tests"]
 addopts = "-ra --strict-markers"
 markers = [
-    "rom: requires a Contra ROM to be importable via stable-retro",
     "slow: long-running tests",
 ]

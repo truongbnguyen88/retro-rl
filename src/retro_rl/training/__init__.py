@@ -1,1 +1,1 @@
-"""contra_rl.training — see CLAUDE.md for responsibilities."""
+"""retro_rl.training — see CLAUDE.md for responsibilities."""

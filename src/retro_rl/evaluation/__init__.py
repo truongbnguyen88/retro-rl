@@ -1,1 +1,1 @@
-"""contra_rl.evaluation — see CLAUDE.md for responsibilities."""
+"""retro_rl.evaluation — see CLAUDE.md for responsibilities."""

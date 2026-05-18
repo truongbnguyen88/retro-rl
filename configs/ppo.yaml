@@ -1,7 +1,10 @@
 # PPO training configuration.
-# Hyperparameters tuned for Atari-style visual inputs; reasonable starting point for Contra.
+# Hyperparameters tuned for Atari-style visual inputs; reasonable starting point
+# for Airstriker. Airstriker is short and visually simple, so 2M steps is
+# typically enough to surface a clear learning signal; bump to 10M+ for longer
+# experiments or harder games.
 
-run_name: ppo_contra_stage1
+run_name: ppo_airstriker
 seed: 42
 
 env_config: configs/env.yaml
@@ -10,7 +13,7 @@ n_envs: 8                     # SubprocVecEnv workers; reduce on low-core machin
 # Algorithm
 algorithm: ppo
 policy: cnn                   # registered in models/policies.py
-total_timesteps: 10_000_000
+total_timesteps: 2_000_000
 
 ppo:
   learning_rate: 2.5e-4       # linear schedule applied in trainer
