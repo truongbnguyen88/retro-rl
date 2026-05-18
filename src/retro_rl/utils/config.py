@@ -82,6 +82,26 @@ class EnvConfig(BaseModel):
     # Set per game to match the integration's data.json variable names.
     info_keys: dict[str, str] | None = None
 
+    # Optional Discrete(N) action space defined by a list of length-12
+    # 0/1 button-combo vectors. None → raw MultiBinary(12). See
+    # `DiscreteActionWrapper` for the rationale (Bernoulli threshold
+    # problem on the fire button for shooters).
+    action_combos: list[list[int]] | None = None
+
+    @field_validator("action_combos")
+    @classmethod
+    def _validate_action_combos(
+        cls, v: list[list[int]] | None
+    ) -> list[list[int]] | None:
+        if v is None:
+            return None
+        if not v:
+            raise ValueError("action_combos must be non-empty if provided")
+        for i, combo in enumerate(v):
+            if not all(b in (0, 1) for b in combo):
+                raise ValueError(f"action_combos[{i}] must be 0/1; got {combo}")
+        return v
+
     @field_validator("resize", mode="before")
     @classmethod
     def _coerce_resize(cls, v: Any) -> tuple[int, int]:

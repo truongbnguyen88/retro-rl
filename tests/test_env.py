@@ -18,6 +18,7 @@ from gymnasium import spaces
 from retro_rl.env.reward_shaping import ShapingState, shape_reward
 from retro_rl.env.wrappers import (
     ActionRepeat,
+    DiscreteActionWrapper,
     EndOnLifeLost,
     FrameStack,
     GrayscaleResize,
@@ -94,6 +95,25 @@ def test_load_env_config_from_repo_yaml():
     # Airstriker-specific info-key override is wired through.
     assert cfg.info_keys is not None
     assert cfg.info_keys["score"] == "score"
+    # v3: discrete action combos — always-fire + 8-way movement (9 actions).
+    assert cfg.action_combos is not None
+    assert len(cfg.action_combos) == 9
+    # Every combo must press B (index 0).
+    assert all(combo[0] == 1 for combo in cfg.action_combos)
+
+
+def test_env_config_action_combos_validation():
+    from pydantic import ValidationError
+
+    # Empty list rejected.
+    with pytest.raises(ValidationError):
+        EnvConfig.model_validate({"action_combos": []})
+    # Non-binary entries rejected.
+    with pytest.raises(ValidationError):
+        EnvConfig.model_validate({"action_combos": [[1, 0, 2, 0]]})
+    # None (default) is allowed → raw MultiBinary path.
+    cfg = EnvConfig.model_validate({})
+    assert cfg.action_combos is None
 
 
 def test_env_config_validation_rejects_unknown_field():
@@ -189,6 +209,107 @@ def test_action_repeat_sums_reward_and_maxpools():
     assert reward == 0.0
     assert next_obs.shape == (240, 256, 3)
     assert next_obs.dtype == np.uint8
+
+
+# ---------------------------------------------------------------------------
+# DiscreteActionWrapper — Discrete(N) → MultiBinary(12) combo lookup
+# ---------------------------------------------------------------------------
+
+
+class _MultiBinaryFakeEnv(gym.Env):
+    """Stub env with MultiBinary(12) action space; records last action."""
+
+    def __init__(self, n_buttons: int = 12):
+        self.observation_space = spaces.Box(0, 255, shape=(4, 4, 3), dtype=np.uint8)
+        self.action_space = spaces.MultiBinary(n_buttons)
+        self.last_action: np.ndarray | None = None
+
+    def reset(self, *, seed=None, options=None):
+        super().reset(seed=seed)
+        return np.zeros((4, 4, 3), dtype=np.uint8), {}
+
+    def step(self, action):
+        self.last_action = np.asarray(action, dtype=np.int8).copy()
+        return np.zeros((4, 4, 3), dtype=np.uint8), 0.0, False, False, {}
+
+
+def test_discrete_action_wrapper_maps_index_to_combo():
+    combos = [
+        [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # 0: B only
+        [1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0],  # 1: B + UP
+        [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0],  # 2: B + LEFT
+    ]
+    inner = _MultiBinaryFakeEnv()
+    env = DiscreteActionWrapper(inner, combos)
+
+    assert isinstance(env.action_space, spaces.Discrete)
+    assert env.action_space.n == 3
+
+    env.reset(seed=0)
+    env.step(1)
+    np.testing.assert_array_equal(inner.last_action, combos[1])
+    env.step(2)
+    np.testing.assert_array_equal(inner.last_action, combos[2])
+
+
+def test_discrete_action_wrapper_rejects_non_multibinary_inner():
+    bad = FakeRetroEnv()  # action_space is Discrete(8)
+    with pytest.raises(TypeError):
+        DiscreteActionWrapper(bad, [[1] * 12])
+
+
+def test_discrete_action_wrapper_validates_combo_shape_and_values():
+    inner = _MultiBinaryFakeEnv(n_buttons=12)
+    # Wrong-length combo.
+    with pytest.raises(ValueError):
+        DiscreteActionWrapper(inner, [[1, 0, 0]])
+    # Non-binary entry.
+    with pytest.raises(ValueError):
+        DiscreteActionWrapper(_MultiBinaryFakeEnv(), [[1, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0]])
+    # Empty list.
+    with pytest.raises(ValueError):
+        DiscreteActionWrapper(_MultiBinaryFakeEnv(), [])
+
+
+def test_apply_wrappers_uses_discrete_action_wrapper_when_combos_set():
+    combos = [
+        [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0],
+    ]
+    cfg = EnvConfig(
+        game="dummy",
+        state="dummy",
+        action_repeat=1,
+        frame_stack=1,
+        resize=(84, 84),
+        max_episode_steps=20,
+        end_on_life_lost=False,
+        action_combos=combos,
+    )
+    inner = _MultiBinaryFakeEnv()
+    env = apply_wrappers(inner, cfg)
+    # Outermost action space should now be Discrete(N).
+    assert isinstance(env.action_space, spaces.Discrete)
+    assert env.action_space.n == 2
+    env.reset(seed=0)
+    env.step(1)
+    np.testing.assert_array_equal(inner.last_action, combos[1])
+
+
+def test_apply_wrappers_skips_discrete_when_combos_none():
+    cfg = EnvConfig(
+        game="dummy",
+        state="dummy",
+        action_repeat=1,
+        frame_stack=1,
+        resize=(84, 84),
+        max_episode_steps=20,
+        end_on_life_lost=False,
+        action_combos=None,
+    )
+    env = apply_wrappers(_MultiBinaryFakeEnv(), cfg)
+    # No DiscreteActionWrapper → outer action space remains MultiBinary.
+    assert isinstance(env.action_space, spaces.MultiBinary)
 
 
 def test_grayscale_resize_observation_space_and_dtype():
