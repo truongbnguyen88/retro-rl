@@ -4,7 +4,7 @@
 # typically enough to surface a clear learning signal; bump to 10M+ for longer
 # experiments or harder games.
 
-run_name: ppo_airstriker_v3   # v2 (`ppo_airstriker_v2`) hit the MultiBinary Bernoulli threshold problem on the fire button — deterministic eval frozen at -35.75 for 700K consecutive steps; v3 switches to Discrete(9) always-fire combos (see configs/env.yaml :: action_combos)
+run_name: ppo_airstriker_v5   # v3/v4 had a tap-fire bug — holding B in always-fire combos fired 1 bullet per life (Airstriker fires only on rising edge of B). v5 adds AutoFireWrapper that taps B every 4 frames at the emulator-frame level; combos now encode movement only.
 seed: 42
 
 env_config: configs/env.yaml

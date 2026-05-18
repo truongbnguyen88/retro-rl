@@ -52,6 +52,39 @@ class RewardConfig(BaseModel):
         return v
 
 
+class AutoFireConfig(BaseModel):
+    """Tap-fire generator for games where holding the fire button fires only
+    one bullet on the rising edge (Airstriker and most retro shooters).
+
+    Wraps the raw env so it sees every emulator frame: overrides the fire
+    button's bit to follow a periodic 1-on / (period-1)-off pattern. The
+    pattern produces a press-release-press sequence the emulator interprets
+    as repeated shots, regardless of what the policy emits for that bit.
+
+    Empirically verified for Airstriker: holding B → 0 score in 600 frames;
+    1-on / 3-off pattern → consistent score accumulation.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    button_index: int = 0  # 0 = B for stable-retro Genesis button order
+    period: int = 4  # one press every `period` frames (1 on, period-1 off)
+
+    @field_validator("period")
+    @classmethod
+    def _period_min(cls, v: int) -> int:
+        if v < 2:
+            raise ValueError(f"auto_fire period must be >= 2 (1-on, ≥1-off); got {v}")
+        return v
+
+    @field_validator("button_index")
+    @classmethod
+    def _button_index_range(cls, v: int) -> int:
+        if not 0 <= v < 12:
+            raise ValueError(f"auto_fire button_index must be in [0, 12); got {v}")
+        return v
+
+
 class EnvConfig(BaseModel):
     """Stable-retro env configuration consumed by :func:`retro_rl.env.make_env`."""
 
@@ -87,6 +120,12 @@ class EnvConfig(BaseModel):
     # `DiscreteActionWrapper` for the rationale (Bernoulli threshold
     # problem on the fire button for shooters).
     action_combos: list[list[int]] | None = None
+
+    # Optional frame-level tap-fire generator for the fire button. None →
+    # disabled (policy controls fire bit directly). When set, the fire bit
+    # is overridden inside the wrapper stack so the policy effectively only
+    # learns movement; firing happens at the configured cadence.
+    auto_fire: AutoFireConfig | None = None
 
     @field_validator("action_combos")
     @classmethod
@@ -268,6 +307,7 @@ def load_train_config(path: str | Path) -> TrainConfig:
 
 __all__ = [
     "RewardConfig",
+    "AutoFireConfig",
     "EnvConfig",
     "PPOHyperparams",
     "EvalConfig",

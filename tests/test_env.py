@@ -18,6 +18,7 @@ from gymnasium import spaces
 from retro_rl.env.reward_shaping import ShapingState, shape_reward
 from retro_rl.env.wrappers import (
     ActionRepeat,
+    AutoFireWrapper,
     DiscreteActionWrapper,
     EndOnLifeLost,
     FrameStack,
@@ -26,7 +27,12 @@ from retro_rl.env.wrappers import (
     StickyAction,
     apply_wrappers,
 )
-from retro_rl.utils.config import EnvConfig, RewardConfig, load_env_config
+from retro_rl.utils.config import (
+    AutoFireConfig,
+    EnvConfig,
+    RewardConfig,
+    load_env_config,
+)
 from retro_rl.utils.seeding import set_global_seed
 
 
@@ -90,16 +96,20 @@ def test_load_env_config_from_repo_yaml():
     assert cfg.frame_stack == 4
     assert cfg.action_repeat == 4
     assert cfg.reward.clip == (-50.0, 10.0)
-    assert cfg.reward.survival_bonus == 0.05
+    assert cfg.reward.survival_bonus == 0.01
     assert cfg.end_on_life_lost is False
     # Airstriker-specific info-key override is wired through.
     assert cfg.info_keys is not None
     assert cfg.info_keys["score"] == "score"
-    # v3: discrete action combos — always-fire + 8-way movement (9 actions).
+    # v5: movement-only combos (9 actions); fire handled by AutoFireWrapper.
     assert cfg.action_combos is not None
     assert len(cfg.action_combos) == 9
-    # Every combo must press B (index 0).
-    assert all(combo[0] == 1 for combo in cfg.action_combos)
+    # No combo should press B (index 0); fire is decoupled from policy.
+    assert all(combo[0] == 0 for combo in cfg.action_combos)
+    # AutoFireWrapper enabled: B (index 0) tapped every 4 frames.
+    assert cfg.auto_fire is not None
+    assert cfg.auto_fire.button_index == 0
+    assert cfg.auto_fire.period == 4
 
 
 def test_env_config_action_combos_validation():
@@ -294,6 +304,147 @@ def test_apply_wrappers_uses_discrete_action_wrapper_when_combos_set():
     env.reset(seed=0)
     env.step(1)
     np.testing.assert_array_equal(inner.last_action, combos[1])
+
+
+class _RecordingMultiBinaryEnv(_MultiBinaryFakeEnv):
+    """Same as _MultiBinaryFakeEnv but records every step's action."""
+
+    def __init__(self, n_buttons: int = 12):
+        super().__init__(n_buttons=n_buttons)
+        self.actions: list[np.ndarray] = []
+
+    def step(self, action):
+        a = np.asarray(action, dtype=np.int8).copy()
+        self.actions.append(a)
+        return super().step(action)
+
+
+def test_auto_fire_wrapper_toggles_fire_bit_at_period():
+    """1-on / (period-1)-off pattern on the fire bit, regardless of input."""
+    inner = _RecordingMultiBinaryEnv()
+    cfg = AutoFireConfig(button_index=0, period=4)
+    env = AutoFireWrapper(inner, cfg)
+    env.reset(seed=0)
+    # Send an action with B=0; AutoFire should still tap B per its schedule.
+    base = np.zeros(12, dtype=np.int8)
+    for _ in range(8):
+        env.step(base)
+    fire_bits = [int(a[0]) for a in inner.actions]
+    # Expect 1,0,0,0, 1,0,0,0
+    assert fire_bits == [1, 0, 0, 0, 1, 0, 0, 0]
+
+
+def test_auto_fire_wrapper_overrides_incoming_fire_bit():
+    """Even if caller sets B=1 every frame, AutoFire still gates it."""
+    inner = _RecordingMultiBinaryEnv()
+    cfg = AutoFireConfig(button_index=0, period=4)
+    env = AutoFireWrapper(inner, cfg)
+    env.reset(seed=0)
+    held = np.zeros(12, dtype=np.int8)
+    held[0] = 1  # caller holds B
+    for _ in range(8):
+        env.step(held)
+    fire_bits = [int(a[0]) for a in inner.actions]
+    # Still 1-on / 3-off — caller's B=1 doesn't bypass the schedule.
+    assert fire_bits == [1, 0, 0, 0, 1, 0, 0, 0]
+
+
+def test_auto_fire_wrapper_preserves_non_fire_bits():
+    """Movement bits set by the caller must pass through untouched."""
+    inner = _RecordingMultiBinaryEnv()
+    cfg = AutoFireConfig(button_index=0, period=4)
+    env = AutoFireWrapper(inner, cfg)
+    env.reset(seed=0)
+    a = np.zeros(12, dtype=np.int8)
+    a[7] = 1  # RIGHT
+    env.step(a)
+    env.step(a)
+    # Both calls should preserve RIGHT regardless of the AutoFire bit.
+    for recorded in inner.actions:
+        assert recorded[7] == 1
+
+
+def test_auto_fire_wrapper_resets_counter_on_reset():
+    """First step after reset should fire (counter starts at 0)."""
+    inner = _RecordingMultiBinaryEnv()
+    cfg = AutoFireConfig(button_index=0, period=4)
+    env = AutoFireWrapper(inner, cfg)
+    env.reset(seed=0)
+    # Step a few times to advance the counter mid-period.
+    for _ in range(3):
+        env.step(np.zeros(12, dtype=np.int8))
+    inner.actions.clear()
+    env.reset(seed=0)
+    env.step(np.zeros(12, dtype=np.int8))
+    # First post-reset step must press B (counter == 0).
+    assert inner.actions[0][0] == 1
+
+
+def test_auto_fire_wrapper_rejects_non_multibinary_inner():
+    bad = FakeRetroEnv()  # Discrete(8) action space
+    with pytest.raises(TypeError):
+        AutoFireWrapper(bad, AutoFireConfig())
+
+
+def test_auto_fire_config_validates_period_and_index():
+    from pydantic import ValidationError
+
+    with pytest.raises(ValidationError):
+        AutoFireConfig(period=1)  # must be >= 2
+    with pytest.raises(ValidationError):
+        AutoFireConfig(button_index=12)  # out of range
+    with pytest.raises(ValidationError):
+        AutoFireConfig(button_index=-1)
+
+
+def test_apply_wrappers_inserts_auto_fire_when_enabled():
+    """AutoFireWrapper must sit innermost (above raw env, below DiscreteAction)."""
+    combos = [
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # idle
+        [0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0],  # RIGHT
+    ]
+    cfg = EnvConfig(
+        game="dummy",
+        state="dummy",
+        action_repeat=4,  # AutoFire fires once per ActionRepeat cycle
+        frame_stack=1,
+        resize=(84, 84),
+        max_episode_steps=20,
+        end_on_life_lost=False,
+        action_combos=combos,
+        auto_fire=AutoFireConfig(button_index=0, period=4),
+    )
+    inner = _RecordingMultiBinaryEnv()
+    env = apply_wrappers(inner, cfg)
+    env.reset(seed=0)
+    env.step(1)  # one policy step = 4 inner frames via ActionRepeat
+    # Across those 4 frames: B follows 1,0,0,0 and RIGHT stays 1 throughout.
+    fire_bits = [int(a[0]) for a in inner.actions]
+    right_bits = [int(a[7]) for a in inner.actions]
+    assert fire_bits == [1, 0, 0, 0]
+    assert right_bits == [1, 1, 1, 1]
+
+
+def test_apply_wrappers_skips_auto_fire_when_none():
+    """auto_fire=None → no AutoFireWrapper; combo's fire bit reaches the env unchanged."""
+    combos = [[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]]  # held B
+    cfg = EnvConfig(
+        game="dummy",
+        state="dummy",
+        action_repeat=4,
+        frame_stack=1,
+        resize=(84, 84),
+        max_episode_steps=20,
+        end_on_life_lost=False,
+        action_combos=combos,
+        auto_fire=None,
+    )
+    inner = _RecordingMultiBinaryEnv()
+    env = apply_wrappers(inner, cfg)
+    env.reset(seed=0)
+    env.step(0)
+    # Without AutoFire, the held B=1 reaches every inner-frame action.
+    assert all(int(a[0]) == 1 for a in inner.actions)
 
 
 def test_apply_wrappers_skips_discrete_when_combos_none():
