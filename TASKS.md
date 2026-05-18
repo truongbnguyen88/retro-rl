@@ -54,21 +54,24 @@ Status legend: `[ ]` todo · `[~]` in progress · `[x]` done · `[!]` blocked
 - [x] `tests/test_training.py`: **14 passed** — CheckpointManager unit tests (atomic, sidecar, best-tracking, last-K rotation, restore from disk)
 - [x] Smoke acceptance: `python scripts/train.py --config configs/ppo_smoke.yaml` completes; `outputs/checkpoints/ppo_airstriker_smoke/{best,step-*}.{zip,json}` + `outputs/tensorboard/ppo_airstriker_smoke_*/events.*` + `outputs/videos/ppo_airstriker_smoke/eval-step-*.mp4` all produced
 
-## Milestone 4 — Evaluation
+## Milestone 4 — Evaluation ✅
 
-- [ ] `evaluation/evaluator.py`: rollout N deterministic episodes, return metrics dict
-- [ ] `evaluation/metrics.py`: mean/std return, mean episode length, stage-clear rate, deaths-per-episode
-- [ ] `utils/video.py`: write mp4 from frame list (imageio-ffmpeg)
-- [ ] `scripts/evaluate.py`: CLI; emits JSON + optional video
+- [x] `evaluation/evaluator.py`: `evaluate(agent, env, n_episodes, ...)` → `(EvalMetrics, frames)`; death + stage-clear tracking from info dict; first-episode frame capture
+- [x] `evaluation/metrics.py`: `EpisodeResult` + `EvalMetrics` frozen dataclasses; `compute_metrics` — mean/std/min/max return, mean episode length, stage-clear rate, deaths-per-episode
+- [x] `utils/video.py`: `write_mp4(frames, path, fps)` — atomic write (tmp + rename); extracted from inline callback code
+- [x] `scripts/evaluate.py`: argparse CLI — `--checkpoint`, `--config`, `--episodes`, `--seed`, `--no-video`, `--output-dir`; emits `metrics.json` + `episode_0.mp4`
+- [x] `training/callbacks.py`: refactored to use `utils.video.write_mp4` (removed inline `_write_mp4`)
+- [x] `tests/test_evaluation.py`: **21 passed** — `compute_metrics` (correctness, frozen, empty guard), `evaluate` (episode count, returns, death/truncation distinction, stage-clear key mapping, first-episode-only frames), `write_mp4` (creates file, no tmp residue, empty guard, string path)
 
-## Milestone 5 — Backend (FastAPI)
+## Milestone 5 — Backend (FastAPI) ✅
 
-- [ ] `backend/models.py`: pydantic request/response schemas
-- [ ] `backend/inference.py`: lazy-loaded agent registry (path → loaded model)
-- [ ] `backend/api.py`: routes — `GET /health`, `GET /checkpoints`, `POST /episodes` (start), `GET /episodes/{id}/frame`, `GET /episodes/{id}/state`, `GET /runs`, `GET /runs/{id}/metrics`
-- [ ] `scripts/serve.py`: uvicorn launcher
-- [ ] `tests/test_backend.py`: TestClient hits each route; mocks the agent
-- [ ] `docs/api.md`: route reference (generated from OpenAPI is fine)
+- [x] `backend/models.py`: 11 pydantic schemas — `HealthResponse`, `CheckpointInfo`/`CheckpointList`, `EpisodeStartRequest`/`EpisodeStartResponse`/`EpisodeState`, `RunInfo`/`RunList`, `MetricPoint`/`MetricSeries`/`RunMetrics`, `ErrorResponse`; all `extra="forbid"`
+- [x] `backend/inference.py`: `CheckpointResolver` (id↔path, snapshot→EnvConfig, `list_all()`), `AgentRegistry` (LRU-bounded PPO cache, thread-safe), `EpisodeRuntime` (per-rollout: step/state/frame_png/close with per-instance lock), `EpisodeRegistry` (thread-safe map). PIL for PNG encode; `_json_safe` for numpy→JSON in info dicts
+- [x] `backend/api.py`: 8 routes — `GET /health`, `GET /checkpoints`, `GET /runs`, `GET /runs/{name}/metrics` (lazy TB EventAccumulator, picks latest log dir per run), `POST /episodes` (201, eager env build), `GET /episodes/{id}/state`, `GET /episodes/{id}/frame` (advances one step, returns image/png), `DELETE /episodes/{id}` (204). Lifespan-managed singletons on `app.state`; CORS pre-wired for Streamlit
+- [x] `scripts/serve.py`: argparse CLI — `--host`, `--port`, `--checkpoint-root`, `--tensorboard-root`, `--agent-cache-size`, `--log-level`; same sys.path + PYTHONPATH shim as `train.py`; verified end-to-end via real HTTP boot + clean SIGTERM shutdown
+- [x] `tests/test_backend.py`: **24 passed** — `/health`, `/checkpoints` (2), `/runs` (aggregation + config_snapshot detection), `/runs/{name}/metrics` (4: happy + two 404 branches + latest-log-dir selection via synthesized TB events), `POST /episodes` (5: happy + unknown ckpt + bad id format + 422 paths), `/state` (2), `/frame` (3: advances state, PNG Content-Type + magic bytes, idempotent after done), `DELETE` (1), `AgentRegistry` LRU (2), `EpisodeRegistry` semantics (3). Uses `dependency_overrides` + monkey-patching of `EpisodeRuntime` to avoid real stable-retro env construction in CI
+- [x] `pyproject.toml`: added `httpx>=0.27` to `[dev]` deps (FastAPI TestClient dependency)
+- [ ] `docs/api.md`: deferred to M7. OpenAPI auto-doc at `/docs` and `/redoc` covers the route reference live; checked-in doc only worth adding if the API stabilises and we want a static reference
 
 ## Milestone 6 — Frontend (Streamlit)
 
@@ -90,14 +93,14 @@ Status legend: `[ ]` todo · `[~]` in progress · `[x]` done · `[!]` blocked
 
 ## Currently in flight
 
-_None — Milestone 3 landed. Ready to pick Milestone 4._
+- **Full training run in background** — `python scripts/train.py --config configs/ppo.yaml`, 2M steps total. Kicked off 2026-05-18 alongside M5 implementation. `n_envs=8` SubprocVecEnv on Apple Silicon, ~207 fps aggregate → ETA ~2.7h wall. Live progress visible via `GET /runs/ppo_airstriker/metrics` once the backend is up. Producing periodic checkpoints (every 250K steps), eval videos (every 100K), and TB scalar series. At time of M5 landing: ~300K / 2M steps complete; `rollout/ep_rew_mean` climbing (88 → 94 between 100K and 200K); deterministic `eval/mean_return` still pinned at -10 (expected at this stage — argmax policy lags exploration distribution early).
+- Milestone 5 landed. Holding before M6 (Streamlit frontend) per direction.
 
 ## Next up (queue)
 
-1. Milestone 4 — evaluation (richer metrics, eval CLI, video writer extraction)
-2. Real training run (`python scripts/train.py --config configs/ppo.yaml`) — 2M steps, kickoff anytime after M3; can run in background while M5/M6 develop against intermediate checkpoints
-3. Milestone 5 — backend
-4. Milestone 6 — frontend
+1. Milestone 6 — frontend (Streamlit dashboard against the now-live backend)
+2. Decide whether to extend training to 4M based on the 2M run's learning curve
+3. Milestone 7 — polish (docs, CI, pre-commit, optional `docs/api.md`)
 
 ## Decisions log
 

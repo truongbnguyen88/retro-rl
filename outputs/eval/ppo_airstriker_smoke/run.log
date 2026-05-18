@@ -1,0 +1,5 @@
+2026-05-18 13:33:16,525 INFO    retro_rl.evaluate | checkpoint=outputs/checkpoints/ppo_airstriker_smoke/best.zip episodes=3 seed=42 video=True output=outputs/eval/ppo_airstriker_smoke
+2026-05-18 13:33:16,585 INFO    retro_rl.evaluate | loading checkpoint outputs/checkpoints/ppo_airstriker_smoke/best.zip
+2026-05-18 13:33:17,572 INFO    retro_rl.evaluate | metrics → outputs/eval/ppo_airstriker_smoke/metrics.json
+2026-05-18 13:33:17,573 INFO    retro_rl.evaluate | mean_return=-10.00 std=0.00 mean_length=78.0 stage_clear_rate=1.00 deaths/ep=1.00
+2026-05-18 13:33:17,639 INFO    retro_rl.evaluate | video → outputs/eval/ppo_airstriker_smoke/episode_0.mp4

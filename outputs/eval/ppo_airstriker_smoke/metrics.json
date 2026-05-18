@@ -1,0 +1,11 @@
+{
+  "n_episodes": 3,
+  "mean_return": -10.0,
+  "std_return": 0.0,
+  "min_return": -10.0,
+  "max_return": -10.0,
+  "mean_length": 78.0,
+  "std_length": 0.0,
+  "stage_clear_rate": 1.0,
+  "mean_deaths": 1.0
+}

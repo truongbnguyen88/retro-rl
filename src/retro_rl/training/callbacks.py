@@ -25,11 +25,11 @@ from pathlib import Path
 from typing import Callable
 
 import gymnasium as gym
-import imageio.v2 as imageio
 import numpy as np
 from stable_baselines3.common.callbacks import BaseCallback
 
 from retro_rl.training.checkpoint import CheckpointManager
+from retro_rl.utils.video import write_mp4
 
 
 class PeriodicCheckpointCallback(BaseCallback):
@@ -121,7 +121,7 @@ class EvalAndVideoCallback(BaseCallback):
         self.manager.save(self.model, self.num_timesteps, eval_return=mean_return)
 
         if self.video_dir is not None and frames:
-            self._write_mp4(frames, self.video_dir / f"eval-step-{self.num_timesteps}.mp4")
+            write_mp4(frames, self.video_dir / f"eval-step-{self.num_timesteps}.mp4", fps=self.video_fps)
 
         self._next_eval = (
             (self.num_timesteps // self.every_steps) + 1
@@ -160,16 +160,6 @@ class EvalAndVideoCallback(BaseCallback):
             lengths.append(ep_length)
 
         return returns, lengths, frames
-
-    def _write_mp4(self, frames: list[np.ndarray], path: Path) -> None:
-        path.parent.mkdir(parents=True, exist_ok=True)
-        # tmp path must preserve the .mp4 extension — imageio picks the codec
-        # backend by extension and rejects unknown suffixes like ".mp4.tmp".
-        tmp = path.with_suffix(".tmp" + path.suffix)
-        with imageio.get_writer(str(tmp), fps=self.video_fps, codec="libx264") as writer:
-            for f in frames:
-                writer.append_data(f)
-        tmp.replace(path)
 
 
 __all__ = ["PeriodicCheckpointCallback", "EvalAndVideoCallback"]

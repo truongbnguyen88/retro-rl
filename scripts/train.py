@@ -14,11 +14,25 @@ than adding CLI flags.
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 from pathlib import Path
 
-from retro_rl.training.trainer import train
-from retro_rl.utils.config import load_train_config
+# sys.path shim: macOS auto-applies UF_HIDDEN to files in `.venv/lib/.../site-packages/`,
+# and CPython 3.12.5+ skips hidden .pth files for security. We seed sys.path here
+# (main process) and PYTHONPATH (so SubprocVecEnv spawn-method workers inherit it).
+_repo_root = Path(__file__).resolve().parents[1]
+_src_path = str(_repo_root / "src")
+if _src_path not in sys.path:
+    sys.path.insert(0, _src_path)
+_existing_pp = os.environ.get("PYTHONPATH", "")
+if _src_path not in _existing_pp.split(os.pathsep):
+    os.environ["PYTHONPATH"] = (
+        _src_path + (os.pathsep + _existing_pp if _existing_pp else "")
+    )
+
+from retro_rl.training.trainer import train  # noqa: E402
+from retro_rl.utils.config import load_train_config  # noqa: E402
 
 
 def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
