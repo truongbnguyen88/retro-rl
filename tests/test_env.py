@@ -88,7 +88,9 @@ def test_load_env_config_from_repo_yaml():
     assert cfg.resize == (84, 84)
     assert cfg.frame_stack == 4
     assert cfg.action_repeat == 4
-    assert cfg.reward.clip == (-10.0, 10.0)
+    assert cfg.reward.clip == (-50.0, 10.0)
+    assert cfg.reward.survival_bonus == 0.05
+    assert cfg.end_on_life_lost is False
     # Airstriker-specific info-key override is wired through.
     assert cfg.info_keys is not None
     assert cfg.info_keys["score"] == "score"

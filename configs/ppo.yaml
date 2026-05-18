@@ -4,7 +4,7 @@
 # typically enough to surface a clear learning signal; bump to 10M+ for longer
 # experiments or harder games.
 
-run_name: ppo_airstriker
+run_name: ppo_airstriker_v2   # v1 (`ppo_airstriker`) deterministic policy collapsed to "move left → die"; v2 uses updated reward shaping (see configs/env.yaml) + higher ent_coef
 seed: 42
 
 env_config: configs/env.yaml
@@ -23,7 +23,7 @@ ppo:
   gamma: 0.99
   gae_lambda: 0.95
   clip_range: 0.1             # linear schedule applied in trainer
-  ent_coef: 0.01
+  ent_coef: 0.02              # bumped from 0.01 to slow mean-action collapse (v1 deterministic policy locked into "move left")
   vf_coef: 0.5
   max_grad_norm: 0.5
   normalize_advantage: true

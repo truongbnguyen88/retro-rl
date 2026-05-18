@@ -38,6 +38,7 @@ class RewardConfig(BaseModel):
     life_loss: float = -25.0
     death: float = -100.0
     stage_clear: float = 200.0
+    survival_bonus: float = 0.0  # additive per-step reward; encourages staying alive
     clip: tuple[float, float] = (-10.0, 10.0)
 
     @field_validator("clip", mode="before")
