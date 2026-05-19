@@ -181,9 +181,20 @@ class PPOHyperparams(BaseModel):
     gae_lambda: float = 0.95
     clip_range: float = 0.1
     ent_coef: float = 0.01
+    # When set, linearly anneal ent_coef from ``ent_coef`` (start) to
+    # ``ent_coef_final`` (end) over ``total_timesteps``. None disables the
+    # schedule and keeps ent_coef constant.
+    ent_coef_final: float | None = None
     vf_coef: float = 0.5
     max_grad_norm: float = 0.5
     normalize_advantage: bool = True
+
+    @field_validator("ent_coef_final")
+    @classmethod
+    def _ent_coef_final_nonneg(cls, v: float | None) -> float | None:
+        if v is not None and v < 0:
+            raise ValueError(f"ent_coef_final must be >= 0 if set, got {v}")
+        return v
 
 
 class EvalConfig(BaseModel):

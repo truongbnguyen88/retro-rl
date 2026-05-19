@@ -32,6 +32,8 @@ outputs/checkpoints/
 outputs/logs/
 outputs/videos/
 outputs/tensorboard/
+outputs/diagnostics/
+outputs/eval/
 wandb/
 *.zip
 *.pt

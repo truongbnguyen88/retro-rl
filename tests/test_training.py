@@ -1,13 +1,12 @@
-"""Milestone-3 CheckpointManager tests.
+"""Milestone-3 CheckpointManager tests + entropy-schedule callback tests.
 
 CheckpointManager is the only piece of M3 that's pure logic — atomic writes,
 JSON sidecars, last-K rotation, best-tracking. Tested here in isolation with
 a stub model.
 
-The callbacks and trainer are exercised end-to-end by the smoke run
-(``python scripts/train.py --config configs/ppo_smoke.yaml``), which produces
-disk artifacts that prove the wiring works. No separate slow integration
-test in this file.
+EntCoefLinearSchedule (added in v6) drives ``model.ent_coef`` from the rollout
+hook. It is also pure logic given a stub model, so it sits here next to the
+other isolated callback-class tests rather than the slow smoke run.
 """
 
 from __future__ import annotations
@@ -17,6 +16,7 @@ from pathlib import Path
 
 import pytest
 
+from retro_rl.training.callbacks import EntCoefLinearSchedule
 from retro_rl.training.checkpoint import CheckpointManager
 
 
@@ -182,3 +182,95 @@ def test_latest_none_when_no_checkpoints(tmp_path: Path):
     mgr = CheckpointManager(root=tmp_path, run_name="r")
     assert mgr.latest() is None
     assert mgr.best() is None
+
+
+# ---------------------------------------------------------------------------
+# EntCoefLinearSchedule
+# ---------------------------------------------------------------------------
+
+
+class _StubLogger:
+    def __init__(self) -> None:
+        self.records: list[tuple[str, float]] = []
+
+    def record(self, key: str, value: float) -> None:
+        self.records.append((key, float(value)))
+
+
+class _StubPPO:
+    """Minimal PPO surface used by SB3's BaseCallback.
+
+    SB3's ``BaseCallback.logger`` is a property that reads ``self.model.logger``,
+    so the stub must expose one.
+    """
+
+    def __init__(self, logger: _StubLogger | None = None) -> None:
+        self.num_timesteps = 0
+        self.ent_coef: float = 0.0
+        self.logger = logger or _StubLogger()
+
+
+def _bind(cb: EntCoefLinearSchedule, model: _StubPPO):
+    """Mimic SB3's BaseCallback.init_callback hand-off without importing SB3."""
+    cb.model = model  # type: ignore[assignment]
+    return cb
+
+
+def test_ent_coef_schedule_endpoints():
+    model = _StubPPO()
+    cb = _bind(
+        EntCoefLinearSchedule(initial=0.02, final=0.001, total_timesteps=1_000_000),
+        model,
+    )
+    # At step 0 the callback should set ent_coef to the initial value.
+    model.num_timesteps = 0
+    cb._on_training_start()
+    assert model.ent_coef == pytest.approx(0.02)
+
+    # At full progress, ent_coef matches the final value.
+    model.num_timesteps = 1_000_000
+    cb._on_rollout_end()
+    assert model.ent_coef == pytest.approx(0.001)
+
+    # Past full progress, the schedule is clamped — never below the final.
+    model.num_timesteps = 2_000_000
+    cb._on_rollout_end()
+    assert model.ent_coef == pytest.approx(0.001)
+
+
+def test_ent_coef_schedule_midpoint_is_linear():
+    model = _StubPPO()
+    cb = _bind(
+        EntCoefLinearSchedule(initial=0.02, final=0.0, total_timesteps=100),
+        model,
+    )
+    model.num_timesteps = 25
+    cb._on_rollout_end()
+    assert model.ent_coef == pytest.approx(0.02 * 0.75)
+    model.num_timesteps = 50
+    cb._on_rollout_end()
+    assert model.ent_coef == pytest.approx(0.01)
+    model.num_timesteps = 75
+    cb._on_rollout_end()
+    assert model.ent_coef == pytest.approx(0.005)
+
+
+def test_ent_coef_schedule_logs_to_tb():
+    logger = _StubLogger()
+    model = _StubPPO(logger=logger)
+    cb = _bind(
+        EntCoefLinearSchedule(initial=0.05, final=0.0, total_timesteps=10),
+        model,
+    )
+    model.num_timesteps = 5
+    cb._on_rollout_end()
+    assert ("train/ent_coef", pytest.approx(0.025)) in logger.records
+
+
+def test_ent_coef_schedule_rejects_invalid_args():
+    with pytest.raises(ValueError):
+        EntCoefLinearSchedule(initial=0.02, final=0.001, total_timesteps=0)
+    with pytest.raises(ValueError):
+        EntCoefLinearSchedule(initial=-0.01, final=0.0, total_timesteps=1000)
+    with pytest.raises(ValueError):
+        EntCoefLinearSchedule(initial=0.02, final=-0.001, total_timesteps=1000)

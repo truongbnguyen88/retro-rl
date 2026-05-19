@@ -53,6 +53,67 @@ class PeriodicCheckpointCallback(BaseCallback):
         return True
 
 
+class EntCoefLinearSchedule(BaseCallback):
+    """Linearly anneal ``model.ent_coef`` from ``initial`` to ``final``.
+
+    Motivation
+    ----------
+    SB3's ``PPO`` accepts ``ent_coef`` only as a float, not a callable schedule.
+    For Atari-style policies with small Discrete action spaces, a constant
+    ent_coef large enough to encourage exploration early tends to also prevent
+    the policy from committing late: gradients shrink as the value function
+    fits, and the entropy regulariser becomes the dominant loss term, pulling
+    the policy back toward uniform. We observed this empirically on v5 — eval
+    return plateaued at 1.4M then de-committed by 2M while ``approx_kl → 0``.
+
+    Implementation
+    --------------
+    PPO reads ``self.ent_coef`` afresh at every optimisation step. We update it
+    on ``_on_rollout_end`` (i.e. just before the next ``train()`` call) so the
+    value PPO sees during a given gradient-update pass is consistent. The
+    schedule is linear in ``num_timesteps / total_timesteps``, clamped to
+    ``[0, 1]``. We also log the current value to TensorBoard under
+    ``train/ent_coef`` so the schedule is auditable.
+    """
+
+    def __init__(
+        self,
+        initial: float,
+        final: float,
+        total_timesteps: int,
+        verbose: int = 0,
+    ) -> None:
+        super().__init__(verbose=verbose)
+        if total_timesteps <= 0:
+            raise ValueError(f"total_timesteps must be > 0, got {total_timesteps}")
+        if initial < 0 or final < 0:
+            raise ValueError(
+                f"ent_coef bounds must be >= 0; got initial={initial}, final={final}"
+            )
+        self.initial = float(initial)
+        self.final = float(final)
+        self.total_timesteps = int(total_timesteps)
+
+    def _current_value(self) -> float:
+        # Read directly from the model. ``BaseCallback.num_timesteps`` is a
+        # cached attribute that's only refreshed inside ``on_step``; bypassing
+        # the cache makes the schedule robust to which lifecycle hook fired.
+        steps = int(self.model.num_timesteps)
+        progress = min(1.0, max(0.0, steps / self.total_timesteps))
+        return self.initial + progress * (self.final - self.initial)
+
+    def _on_training_start(self) -> None:
+        self.model.ent_coef = self._current_value()
+        self.logger.record("train/ent_coef", float(self.model.ent_coef))
+
+    def _on_rollout_end(self) -> None:
+        self.model.ent_coef = self._current_value()
+        self.logger.record("train/ent_coef", float(self.model.ent_coef))
+
+    def _on_step(self) -> bool:
+        return True
+
+
 class EvalAndVideoCallback(BaseCallback):
     """Deterministic eval + optional video; updates best via manager.
 

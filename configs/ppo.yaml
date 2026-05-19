@@ -4,7 +4,7 @@
 # typically enough to surface a clear learning signal; bump to 10M+ for longer
 # experiments or harder games.
 
-run_name: ppo_airstriker_v5   # v3/v4 had a tap-fire bug — holding B in always-fire combos fired 1 bullet per life (Airstriker fires only on rising edge of B). v5 adds AutoFireWrapper that taps B every 4 frames at the emulator-frame level; combos now encode movement only.
+run_name: ppo_airstriker_v6   # v5 hit a learning ceiling at ~244 return (1.4M steps, 10 kills) then DE-COMMITTED: eval return regressed to 213.88 by 2M, top-2 action mass fell from 75% (LEFT+RIGHT sweep) to 51%, approx_kl → 0.0000. Diagnosis: constant ent_coef=0.02 vs Discrete(9) max-entropy ln(9)≈2.197 holds the policy near-uniform once advantages shrink. v6 fixes this with a linear ent_coef schedule (0.02 → 0.001) over the run — high exploration early, commitment late.
 seed: 42
 
 env_config: configs/env.yaml
@@ -23,7 +23,8 @@ ppo:
   gamma: 0.99
   gae_lambda: 0.95
   clip_range: 0.1             # linear schedule applied in trainer
-  ent_coef: 0.02              # bumped from 0.01 to slow mean-action collapse (v1 deterministic policy locked into "move left")
+  ent_coef: 0.02              # initial entropy bonus — high enough to explore the 9-way action space early
+  ent_coef_final: 0.001       # v6: linearly anneal to 0.001 by total_timesteps; lets the policy commit late
   vf_coef: 0.5
   max_grad_norm: 0.5
   normalize_advantage: true

@@ -34,7 +34,11 @@ from stable_baselines3.common.vec_env import SubprocVecEnv, VecMonitor
 
 from retro_rl.agents.ppo import build_ppo
 from retro_rl.env import make_env, make_env_fn
-from retro_rl.training.callbacks import EvalAndVideoCallback, PeriodicCheckpointCallback
+from retro_rl.training.callbacks import (
+    EntCoefLinearSchedule,
+    EvalAndVideoCallback,
+    PeriodicCheckpointCallback,
+)
 from retro_rl.training.checkpoint import CheckpointManager
 from retro_rl.utils.config import TrainConfig
 from retro_rl.utils.logging import get_logger
@@ -81,21 +85,32 @@ def train(cfg: TrainConfig, resume_from: Path | None = None) -> Path:
     )
 
     eval_env_factory = _build_eval_env_factory(cfg)
-    callbacks = CallbackList(
-        [
-            PeriodicCheckpointCallback(
-                manager=manager,
-                every_steps=cfg.checkpoint.every_steps,
-            ),
-            EvalAndVideoCallback(
-                eval_env_factory=eval_env_factory,
-                n_episodes=cfg.eval.n_episodes,
-                every_steps=cfg.eval.every_steps,
-                manager=manager,
-                video_dir=video_dir,
-            ),
-        ]
-    )
+    callback_list: list = [
+        PeriodicCheckpointCallback(
+            manager=manager,
+            every_steps=cfg.checkpoint.every_steps,
+        ),
+        EvalAndVideoCallback(
+            eval_env_factory=eval_env_factory,
+            n_episodes=cfg.eval.n_episodes,
+            every_steps=cfg.eval.every_steps,
+            manager=manager,
+            video_dir=video_dir,
+        ),
+    ]
+    if cfg.ppo.ent_coef_final is not None:
+        callback_list.append(
+            EntCoefLinearSchedule(
+                initial=cfg.ppo.ent_coef,
+                final=cfg.ppo.ent_coef_final,
+                total_timesteps=cfg.total_timesteps,
+            )
+        )
+        log.info(
+            "ent_coef schedule: linear %.4g → %.4g over %d steps",
+            cfg.ppo.ent_coef, cfg.ppo.ent_coef_final, cfg.total_timesteps,
+        )
+    callbacks = CallbackList(callback_list)
 
     try:
         model.learn(
