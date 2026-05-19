@@ -3105,3 +3105,25 @@ reward_shaping: info key 'x_pos' not present; corresponding term will be zero. C
 |    policy_gradient_loss | -0.000937    |
 |    value_loss           | 304          |
 ------------------------------------------
+-----------------------------------------
+| rollout/                |             |
+|    ep_len_mean          | 794         |
+|    ep_rew_mean          | 1.03e+03    |
+| time/                   |             |
+|    fps                  | 167         |
+|    iterations           | 1310        |
+|    time_elapsed         | 8006        |
+|    total_timesteps      | 1341440     |
+| train/                  |             |
+|    approx_kl            | 0.005098558 |
+|    clip_fraction        | 0.223       |
+|    clip_range           | 0.0665      |
+|    ent_coef             | 0.0136      |
+|    entropy_loss         | -1.87       |
+|    explained_variance   | 0.909       |
+|    learning_rate        | 0.000166    |
+|    loss                 | 71.6        |
+|    n_updates            | 5236        |
+|    policy_gradient_loss | 0.00355     |
+|    value_loss           | 188         |
+-----------------------------------------
