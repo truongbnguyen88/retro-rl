@@ -53,7 +53,6 @@ from PIL import Image
 from stable_baselines3 import PPO
 
 from retro_rl.backend.models import CheckpointInfo, EpisodeState
-from retro_rl.env import make_env
 from retro_rl.utils.config import EnvConfig
 
 logger = logging.getLogger(__name__)
@@ -356,6 +355,8 @@ class EpisodeRuntime:
         max_steps: int | None = None,
     ) -> EpisodeRuntime:
         """Build env, reset, capture initial frame. Returns a ready runtime."""
+        from retro_rl.env import make_env  # lazy: avoids cv2 at collection time
+
         env = make_env(env_cfg, seed=seed, render_mode="rgb_array")
         runtime = cls(
             episode_id=episode_id or uuid.uuid4().hex,

@@ -27,7 +27,6 @@ from typing import Any
 import gymnasium as gym
 import numpy as np
 
-from retro_rl.env.reward_shaping import DEFAULT_INFO_KEYS
 from retro_rl.evaluation.metrics import EpisodeResult, EvalMetrics, compute_metrics
 
 
@@ -74,6 +73,8 @@ def evaluate(
     """
     if n_episodes < 1:
         raise ValueError(f"n_episodes must be >= 1, got {n_episodes}")
+
+    from retro_rl.env.reward_shaping import DEFAULT_INFO_KEYS  # lazy: avoids cv2 at collection time
 
     _info_keys = info_keys if info_keys is not None else DEFAULT_INFO_KEYS
     stage_clear_key = _info_keys.get("stage_clear", "stage_clear")
