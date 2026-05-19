@@ -52,7 +52,7 @@ See [TASKS.md](TASKS.md) for milestone tracking. **Milestones 1–5 complete** (
 
 ## Training notes (Airstriker)
 
-We iterated the action space + reward shaping four times before reaching a stable training setup. Each iteration's diagnosis is preserved in the TASKS.md decisions log; the short version:
+We iterated the action space, reward shaping, optimiser regularisation, and the fire wrapper across seven runs before reaching a stable setup. Each iteration's diagnosis is preserved in the TASKS.md decisions log; the short version:
 
 | Version | Problem | Fix |
 |---------|---------|-----|
@@ -60,6 +60,12 @@ We iterated the action space + reward shaping four times before reaching a stabl
 | **v2** | `MultiBinary(12)` action space → SB3 models each button as independent Bernoulli; P(B=1) converged to ~0.14 — enough for stochastic (1174 return) but below the 0.5 threshold for deterministic eval | `Discrete(9)` over hand-curated combos via [`DiscreteActionWrapper`](src/retro_rl/env/wrappers.py) |
 | **v3** | "Always-fire" combos hardcoded `B=1`; agent converged to passive corner-hiding (high `survival_bonus` made dodging more rewarding than engaging) | Reduce `survival_bonus`, amplify `score_delta` |
 | **v4** | `score_delta` amplification was a no-op against the `+10` clip ceiling | Raised clip ceiling |
-| **v5** *(current)* | **Real bug surfaced**: Airstriker fires only on the *rising edge* of B. Holding B continuously fires one bullet per life. v3/v4's "always-fire" combos were actually "fire once, then never again" | [`AutoFireWrapper`](src/retro_rl/env/wrappers.py) taps B at the emulator-frame level (1-on / 3-off); combos encode movement only. Verified empirically with [`scripts/diagnose_fire_button.py`](scripts/diagnose_fire_button.py) |
+| **v5** | **Rising-edge fire bug**: Airstriker fires only on the *rising edge* of B. v3/v4's "always-fire" combos held B continuously, firing exactly one bullet per life | [`AutoFireWrapper`](src/retro_rl/env/wrappers.py) taps B at the emulator-frame level (1-on / 3-off). Combos encode movement only. Verified with [`scripts/diagnose_fire_button.py`](scripts/diagnose_fire_button.py). Mean return 193, peak 244 over 2M |
+| **v6** | Constant `ent_coef=0.02` against Discrete(9) max entropy `ln(9) ≈ 2.197` kept the policy near-uniform once advantages shrank; eval return peaked at 244 (1.4M) then *regressed* to 214 by 2M with `approx_kl → 0` | Linear `ent_coef` schedule 0.02 → 0.001 over total_timesteps via new [`EntCoefLinearSchedule`](src/retro_rl/training/callbacks.py). Mean rose to 222, peak to 275 over 1.6M, but still ceilinged because v5's tap-fire was actually *too fast* |
+| **v7** *(current)* | **Bullet-array saturation**: AutoFire at period=4 (15 Hz) jammed Airstriker's player-bullet sprite slots within ~0.6s of each life. Game silently dropped B for the remaining 2-5s, so v5/v6 training data only ever covered the first ~5s of Level 1 | Drop AutoFire to `period=24` (2.5 Hz, ~25 bullets per life). Slot array never saturates → fire is visibly active end-to-end → policy can train on deeper level coverage. Carries v6's entropy schedule |
 
-The takeaway for future game integrations: **never assume the policy can replace the human's fire-button finger.** Many retro shooters use rising-edge fire semantics. If you swap to a different game, run `diagnose_fire_button.py` to verify the fire mechanic before training.
+The takeaways for future retro-shooter integrations:
+
+1. **Never assume the policy can replace the human's fire-button finger.** Rising-edge fire semantics are common. Run `diagnose_fire_button.py` to verify the mechanic before training.
+2. **Many retro shooters cap on-screen bullets with a sprite array, and saturating it makes the game silently ignore further fire input.** Run [`scripts/diagnose_fire_rate_vs_state.py`](scripts/diagnose_fire_rate_vs_state.py) to sweep tap rates and pick one that doesn't saturate.
+3. **Validate fire-mechanic fixes by extracting individual eval-video frames** ([`scripts/diagnose_video_kill_frames.py`](scripts/diagnose_video_kill_frames.py)) and confirming bullets are visibly active throughout each life — not just at the start. Visible-bullet-density is more diagnostic than the score curve, especially on the first checkpoint.
