@@ -63,6 +63,13 @@ target-version = "py311"
 select = ["E", "F", "I", "B", "UP", "SIM"]
 ignore = ["E501"]
 
+[tool.ruff.lint.isort]
+# Explicitly mark retro_rl as first-party so the CI lint job (which only
+# installs ruff, not the package itself) classifies it correctly.
+# Without this, ruff falls back to sys.path detection and treats it as
+# third-party, merging it with gymnasium/numpy and triggering I001.
+known-first-party = ["retro_rl"]
+
 [tool.ruff.lint.per-file-ignores]
 # Diagnostic scripts: one-off investigations preserved for reference (v5→v7
 # fire-rate bug hunt, RAM/sprite probes). Not part of the production codepath;
