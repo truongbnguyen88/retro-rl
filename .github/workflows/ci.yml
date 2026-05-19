@@ -21,9 +21,11 @@ jobs:
         with:
           python-version: "3.11"
           cache: pip
-      - run: pip install "ruff>=0.4"
+      # Pin to the exact version used locally so CI and dev produce identical
+      # results. Bump here and in pyproject.toml [dev] together when upgrading.
+      - run: pip install "ruff==0.15.13"
       - name: ruff check
-        run: ruff check src tests
+        run: ruff check src tests --output-format=github
       - name: ruff format --check
         run: ruff format --check src tests
 

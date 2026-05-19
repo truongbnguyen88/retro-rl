@@ -102,7 +102,23 @@ Status legend: `[ ]` todo · `[~]` in progress · `[x]` done · `[!]` blocked
 ## Next up (queue)
 
 1. **v8 eval at 4M** — compare head-to-head vs v7 (peak 1248, final 865). Decision threshold: if v8 `eval/mean_length` climbs above 2000 outer steps or return above 1500 by 2M, the survival tuning is working. If return plateaus near v7's level, the ceiling is likely gameplay-structural (limited enemy density in Level1).
-2. **Optional follow-ups** (deferred until requested):
+
+2. **v9 — capacity + decision-rate ablation** (after v8 completes). Bundles three changes:
+   - `action_repeat: 4 → 8` — halves policy decision rate to 7.5 Hz, addresses the visible "shaking" 2–3-frame action oscillation observed in v8 replay (LEFT↔RIGHT logits flipping every other frame).
+   - Feature extractor `RetroCNN` → **IMPALA ResNet** (3 conv stacks, each `conv + max-pool + 2× residual block`, channels 16→32→32; ~2× params, ~1.3× compute vs NatureCNN). Implement as a sibling extractor in [`src/retro_rl/models/`](src/retro_rl/models/), select via `policy_kwargs.features_extractor_class` — keep `RetroCNN` available for rollback.
+   - `auto_fire.period: 18 → 12` — 5 Hz fire rate (vs v8's 3.33 Hz); sits comfortably between verified-good period=8 (7.5 Hz, +77% return in inference sweep) and period=24 (2.5 Hz, v7 baseline). Capitalizes on longer episodes from v8's survival tuning.
+   - `total_timesteps=4_000_000` retained. **Wall-clock will roughly double** to ~65 h on Apple Silicon because `action_repeat=8` doubles emulator frames per policy step.
+   - **Pre-run 200K-step smoke test** of IMPALA ResNet (action_repeat=8, period=12) alone to catch any LR-incompat or NaN before committing the full 4M run. Watch `train/value_loss`, `train/policy_gradient_loss`, and `eval/mean_return` at the 200K checkpoint.
+   - Risk: bundled changes mean if v9 underperforms v8, attribution is ambiguous (action_repeat vs ResNet vs period). Accepted in exchange for one fewer ~50-h run.
+
+3. **v10 — recurrent memory** (after v9 completes). Adds a recurrent head on top of v9:
+   - Switch from `PPO` to `sb3_contrib.RecurrentPPO` with `LSTM(hidden=256)` policy. Adds `sb3-contrib>=2.3.0` to `pyproject.toml`; trainer wiring is largely identical to `PPO`.
+   - `frame_stack: 4 → 1` — LSTM hidden state owns the temporal-context job; stacking + recurrence double-counts and slows convergence. Canonical setup per IMPALA / R2D2 / "Recurrent Experience Replay" (Kapturowski et al.) / sb3-contrib examples.
+   - BPTT sequence length = `n_steps` (sb3-contrib default 128).
+   - Expected ~25–35% throughput hit from BPTT + sequence-aware minibatching → ~70 h wall-clock for 4M steps.
+   - Fallback variant **v10b** if v10's early curve is rough: keep `frame_stack=2` (give the LSTM instant velocity perception while it learns longer history). Decided based on first ~200K-step curve.
+
+4. **Optional follow-ups** (deferred until requested):
    - `docs/api.md` for the backend (OpenAPI auto-doc at `/docs` covers it live)
    - Backfill mypy annotations to flip the pre-commit hook from advisory to blocking
    - Cache `pip install` in CI via setup-python's cache key tied to `pyproject.toml`
