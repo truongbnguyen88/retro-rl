@@ -4,7 +4,7 @@
 # typically enough to surface a clear learning signal; bump to 10M+ for longer
 # experiments or harder games.
 
-run_name: ppo_airstriker_v6   # v5 hit a learning ceiling at ~244 return (1.4M steps, 10 kills) then DE-COMMITTED: eval return regressed to 213.88 by 2M, top-2 action mass fell from 75% (LEFT+RIGHT sweep) to 51%, approx_kl → 0.0000. Diagnosis: constant ent_coef=0.02 vs Discrete(9) max-entropy ln(9)≈2.197 holds the policy near-uniform once advantages shrink. v6 fixes this with a linear ent_coef schedule (0.02 → 0.001) over the run — high exploration early, commitment late.
+run_name: ppo_airstriker_v7   # v6 (entropy schedule on top of v5's spray-fire setup) reached mean return 222 and peak 275 by 1.6M — better than v5 (193/244) but still capped because the underlying AutoFire period=4 saturates Airstriker's bullet sprite array within 0.6s of each life. A rate-sweep at inference time (scripts/eval_period_sweep.py) showed slower fire avoids saturation: period=8 gave +77% return on v6/best.zip with no retraining (275→486, 11→17 kills). v7 picks the more ambitious bet: period=24 (2.5 Hz) — fire visibly active throughout each life, forcing the policy to learn deliberate position-then-shoot rather than spray. Keeps v6's ent_coef schedule (0.02→0.001) since v6 demonstrated it helps commitment.
 seed: 42
 
 env_config: configs/env.yaml

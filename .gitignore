@@ -46,3 +46,4 @@ wandb/
 # Env files
 .env
 .env.local
+outputs/v6_stdout.log
