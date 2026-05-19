@@ -1,4 +1,4 @@
-[05/19/26 09:58:16] INFO     run_name=ppo_airstriker_v7 seed=42 total_timesteps=2000000 n_envs=8 resume=None                                                                                                                
+[05/19/26 09:58:16] INFO     run_name=ppo_airstriker_v7 seed=42 total_timesteps=2000000 n_envs=8 resume=None
 2026-05-19 09:58:18.293 Python[18257:29642039] ApplePersistenceIgnoreState: Existing state will not be touched. New state will be written to /var/folders/56/jqj8nyt12sxbm6rgrnlf06y00000gn/T/org.python.python.savedState
 2026-05-19 09:58:18.299 Python[18265:29642062] ApplePersistenceIgnoreState: Existing state will not be touched. New state will be written to /var/folders/56/jqj8nyt12sxbm6rgrnlf06y00000gn/T/org.python.python.savedState
 2026-05-19 09:58:18.300 Python[18258:29642043] ApplePersistenceIgnoreState: Existing state will not be touched. New state will be written to /var/folders/56/jqj8nyt12sxbm6rgrnlf06y00000gn/T/org.python.python.savedState
@@ -9,7 +9,7 @@
 2026-05-19 09:58:18.317 Python[18264:29642061] ApplePersistenceIgnoreState: Existing state will not be touched. New state will be written to /var/folders/56/jqj8nyt12sxbm6rgrnlf06y00000gn/T/org.python.python.savedState
 Using cpu device
 Wrapping the env in a VecTransposeImage.
-[05/19/26 09:58:19] INFO     ent_coef schedule: linear 0.02 → 0.001 over 2000000 steps                                                                                                                                      
+[05/19/26 09:58:19] INFO     ent_coef schedule: linear 0.02 → 0.001 over 2000000 steps
 Logging to outputs/tensorboard/ppo_airstriker_v7_2
 reward_shaping: info key 'x_pos' not present; corresponding term will be zero. Check the stable-retro integration's data.json.
 reward_shaping: info key 'x_pos' not present; corresponding term will be zero. Check the stable-retro integration's data.json.
@@ -4954,5 +4954,5 @@ Traceback (most recent call last):
     self.platform_event_loop.notify()
     ^^^^^^^^^^^^^^^^^^^^^^^^
 AttributeError: 'CocoaAlternateEventLoop' object has no attribute 'platform_event_loop'
-[05/19/26 14:41:39] INFO     training complete; final_step=2000896 best_return=1247.7999999999856                                                                                                                           
+[05/19/26 14:41:39] INFO     training complete; final_step=2000896 best_return=1247.7999999999856
 best checkpoint: outputs/checkpoints/ppo_airstriker_v7/best.zip

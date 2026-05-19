@@ -31,7 +31,6 @@ if str(_FRONTEND_DIR) not in sys.path:
     sys.path.insert(0, str(_FRONTEND_DIR))
 
 import streamlit as st  # noqa: E402
-
 from app import render_sidebar  # noqa: E402
 from components.api_client import (  # noqa: E402
     BackendError,
@@ -41,7 +40,6 @@ from components.api_client import (  # noqa: E402
     list_checkpoints,
     start_episode,
 )
-
 
 st.set_page_config(page_title="Play · retro-rl", layout="wide")
 render_sidebar()
@@ -183,7 +181,7 @@ if st.session_state.playing and not initial_state["done"]:
     while st.session_state.playing:
         loop_start = time.monotonic()
         try:
-            png = get_episode_frame(ep_id)   # advances one step + returns frame
+            png = get_episode_frame(ep_id)  # advances one step + returns frame
             state = get_episode_state(ep_id)
         except BackendError as e:
             st.error(f"stream interrupted: {e}")

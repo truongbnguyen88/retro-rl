@@ -8,6 +8,7 @@ imported Contra ROM.
 
 from __future__ import annotations
 
+import contextlib
 from pathlib import Path
 
 import gymnasium as gym
@@ -35,7 +36,6 @@ from retro_rl.utils.config import (
 )
 from retro_rl.utils.seeding import set_global_seed
 
-
 # ---------------------------------------------------------------------------
 # Fake env — stand-in for stable-retro
 # ---------------------------------------------------------------------------
@@ -47,9 +47,7 @@ class FakeRetroEnv(gym.Env):
     metadata = {"render_modes": []}
 
     def __init__(self, episode_len: int = 50, lives_start: int = 3):
-        self.observation_space = spaces.Box(
-            low=0, high=255, shape=(240, 256, 3), dtype=np.uint8
-        )
+        self.observation_space = spaces.Box(low=0, high=255, shape=(240, 256, 3), dtype=np.uint8)
         self.action_space = spaces.Discrete(8)
         self._t = 0
         self._episode_len = episode_len
@@ -602,7 +600,5 @@ def test_make_env_airstriker_smoke():
     # known AttributeError in pyglet 1.5.x on macOS. The env contents we care
     # about (factory, wrappers, stepping) already validated above; the leaked
     # subprocess is reaped at pytest teardown anyway.
-    try:
+    with contextlib.suppress(AttributeError):
         env.close()
-    except AttributeError:
-        pass

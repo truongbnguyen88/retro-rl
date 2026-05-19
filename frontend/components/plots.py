@@ -8,10 +8,9 @@ theme without seams.
 
 from __future__ import annotations
 
-from typing import Iterable
+from collections.abc import Iterable
 
 import plotly.graph_objects as go
-
 
 _LAYOUT_BASE = dict(
     template="plotly_dark",
@@ -35,7 +34,9 @@ def line_chart(
     ys = [p["value"] for p in points]
     fig = go.Figure(
         data=go.Scatter(
-            x=xs, y=ys, mode="lines+markers",
+            x=xs,
+            y=ys,
+            mode="lines+markers",
             line=dict(width=2, color=line_color) if line_color else dict(width=2),
             marker=dict(size=5),
             name=title,
@@ -69,8 +70,12 @@ def multi_line_chart(
         ys = [p["value"] for p in points]
         fig.add_trace(
             go.Scatter(
-                x=xs, y=ys, mode="lines+markers", name=name,
-                line=dict(width=2), marker=dict(size=4),
+                x=xs,
+                y=ys,
+                mode="lines+markers",
+                name=name,
+                line=dict(width=2),
+                marker=dict(size=4),
             )
         )
     fig.update_layout(
@@ -88,8 +93,11 @@ def empty_placeholder(message: str) -> go.Figure:
     fig = go.Figure()
     fig.add_annotation(
         text=message,
-        xref="paper", yref="paper",
-        x=0.5, y=0.5, showarrow=False,
+        xref="paper",
+        yref="paper",
+        x=0.5,
+        y=0.5,
+        showarrow=False,
         font=dict(size=14),
     )
     fig.update_layout(

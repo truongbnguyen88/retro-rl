@@ -54,9 +54,7 @@ def read_score(ram: np.ndarray) -> int:
 
 def main() -> None:
     OUT_DIR.mkdir(parents=True, exist_ok=True)
-    env = retro.make(
-        game=GAME, state=STATE, scenario=SCENARIO, render_mode="rgb_array"
-    )
+    env = retro.make(game=GAME, state=STATE, scenario=SCENARIO, render_mode="rgb_array")
     try:
         env.reset()
         # Skip the splash screen
@@ -100,8 +98,14 @@ def main() -> None:
                         f"score={score}  lives={lives}"
                     )
                     cv2.putText(
-                        bgr, label, (4, bgr.shape[0] - 6),
-                        cv2.FONT_HERSHEY_PLAIN, 0.7, (255, 255, 255), 1, cv2.LINE_AA,
+                        bgr,
+                        label,
+                        (4, bgr.shape[0] - 6),
+                        cv2.FONT_HERSHEY_PLAIN,
+                        0.7,
+                        (255, 255, 255),
+                        1,
+                        cv2.LINE_AA,
                     )
                     cv2.imwrite(str(OUT_DIR / f"frame_{i:04d}.png"), bgr)
 

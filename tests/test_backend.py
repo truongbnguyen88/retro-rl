@@ -40,14 +40,12 @@ from retro_rl.backend.api import (
 )
 from retro_rl.backend.inference import (
     AgentRegistry,
-    EpisodeRegistry,
-    EpisodeRuntime,
-    EpisodeNotFoundError,
     CheckpointNotFoundError,
+    EpisodeNotFoundError,
+    EpisodeRegistry,
 )
 from retro_rl.backend.models import CheckpointInfo, EpisodeState
 from retro_rl.utils.config import EnvConfig
-
 
 # ---------------------------------------------------------------------------
 # Fakes
@@ -80,6 +78,7 @@ class _FakeResolver:
     def resolve_path(self, checkpoint_id: str) -> Path:
         # Reuse the real id-format validator so malformed ids fail like prod.
         from retro_rl.backend.inference import _parse_checkpoint_id
+
         _parse_checkpoint_id(checkpoint_id)
         if checkpoint_id == self._bad_id:
             raise CheckpointNotFoundError(f"checkpoint not found on disk: {checkpoint_id}")
@@ -87,6 +86,7 @@ class _FakeResolver:
 
     def env_config_for(self, checkpoint_id: str) -> EnvConfig:
         from retro_rl.backend.inference import _parse_checkpoint_id
+
         _parse_checkpoint_id(checkpoint_id)
         if checkpoint_id == self._bad_id:
             raise CheckpointNotFoundError(f"checkpoint not found on disk: {checkpoint_id}")
@@ -149,13 +149,14 @@ class _FakeRuntime:
         seed: int | None = None,
         deterministic: bool = True,
         max_steps: int | None = None,
-    ) -> "_FakeRuntime":
+    ) -> _FakeRuntime:
         # signature mirrors EpisodeRuntime.start so the route can call it unchanged
         return cls(checkpoint_id=checkpoint_id)
 
     def step(self) -> None:
         if self._terminated or self._truncated:
             from retro_rl.backend.inference import EpisodeFinishedError
+
             raise EpisodeFinishedError("done")
         self._step += 1
         self._reward += 1.0
@@ -177,6 +178,7 @@ class _FakeRuntime:
     def frame_png(self) -> bytes:
         # Encode a 4×4 RGB stub via the same path the real runtime uses.
         from retro_rl.backend.inference import _frame_to_png
+
         return _frame_to_png(np.zeros((4, 4, 3), dtype=np.uint8))
 
     def close(self) -> None:
@@ -200,18 +202,30 @@ class _FakeRuntime:
 def fake_resolver() -> _FakeResolver:
     items = [
         CheckpointInfo(
-            id="ppo_x/best", run_name="ppo_x", kind="best", step=200_000,
-            eval_return=42.0, timestamp="2026-05-18T13:00:00+00:00",
+            id="ppo_x/best",
+            run_name="ppo_x",
+            kind="best",
+            step=200_000,
+            eval_return=42.0,
+            timestamp="2026-05-18T13:00:00+00:00",
             path="outputs/checkpoints/ppo_x/best.zip",
         ),
         CheckpointInfo(
-            id="ppo_x/step-100000", run_name="ppo_x", kind="step", step=100_000,
-            eval_return=20.0, timestamp="2026-05-18T12:00:00+00:00",
+            id="ppo_x/step-100000",
+            run_name="ppo_x",
+            kind="step",
+            step=100_000,
+            eval_return=20.0,
+            timestamp="2026-05-18T12:00:00+00:00",
             path="outputs/checkpoints/ppo_x/step-100000.zip",
         ),
         CheckpointInfo(
-            id="ppo_y/step-50000", run_name="ppo_y", kind="step", step=50_000,
-            eval_return=None, timestamp="2026-05-18T11:00:00+00:00",
+            id="ppo_y/step-50000",
+            run_name="ppo_y",
+            kind="step",
+            step=50_000,
+            eval_return=None,
+            timestamp="2026-05-18T11:00:00+00:00",
             path="outputs/checkpoints/ppo_y/step-50000.zip",
         ),
     ]
@@ -277,7 +291,9 @@ def test_checkpoints_returns_resolver_items(client: TestClient):
     assert r.status_code == 200
     data = r.json()
     assert [c["id"] for c in data["checkpoints"]] == [
-        "ppo_x/best", "ppo_x/step-100000", "ppo_y/step-50000",
+        "ppo_x/best",
+        "ppo_x/step-100000",
+        "ppo_y/step-50000",
     ]
 
 
@@ -311,18 +327,30 @@ def test_runs_aggregates_per_run(client: TestClient, tmp_path: Path):
     new_resolver = _FakeResolver(
         items=[
             CheckpointInfo(
-                id="ppo_x/best", run_name="ppo_x", kind="best", step=200_000,
-                eval_return=42.0, timestamp="t",
+                id="ppo_x/best",
+                run_name="ppo_x",
+                kind="best",
+                step=200_000,
+                eval_return=42.0,
+                timestamp="t",
                 path=str(ckpt_root / "ppo_x" / "best.zip"),
             ),
             CheckpointInfo(
-                id="ppo_x/step-100000", run_name="ppo_x", kind="step", step=100_000,
-                eval_return=20.0, timestamp="t",
+                id="ppo_x/step-100000",
+                run_name="ppo_x",
+                kind="step",
+                step=100_000,
+                eval_return=20.0,
+                timestamp="t",
                 path=str(ckpt_root / "ppo_x" / "step-100000.zip"),
             ),
             CheckpointInfo(
-                id="ppo_y/step-50000", run_name="ppo_y", kind="step", step=50_000,
-                eval_return=None, timestamp="t",
+                id="ppo_y/step-50000",
+                run_name="ppo_y",
+                kind="step",
+                step=50_000,
+                eval_return=None,
+                timestamp="t",
                 path=str(ckpt_root / "ppo_y" / "step-50000.zip"),
             ),
         ],
@@ -335,7 +363,7 @@ def test_runs_aggregates_per_run(client: TestClient, tmp_path: Path):
     runs = {row["run_name"]: row for row in r.json()["runs"]}
     assert runs["ppo_x"]["has_best"] is True
     assert runs["ppo_x"]["best_return"] == 42.0
-    assert runs["ppo_x"]["latest_step"] == 100_000   # max of step kind only
+    assert runs["ppo_x"]["latest_step"] == 100_000  # max of step kind only
     assert runs["ppo_x"]["checkpoint_count"] == 2
     assert runs["ppo_x"]["config_snapshot_path"].endswith("config_snapshot.json")
 
@@ -354,6 +382,7 @@ def _write_tb_scalars(log_dir: Path, scalars: dict[str, list[tuple[int, float]]]
     """Emit minimal TB scalar events. Uses torch.utils.tensorboard.SummaryWriter
     (already a dep via stable-baselines3 → torch)."""
     from torch.utils.tensorboard import SummaryWriter
+
     log_dir.mkdir(parents=True, exist_ok=True)
     writer = SummaryWriter(str(log_dir))
     try:
@@ -369,8 +398,7 @@ def test_metrics_route_parses_scalars(client: TestClient, tmp_path: Path):
     tb_root = tmp_path / "tb"
     _write_tb_scalars(
         tb_root / "ppo_x_1",
-        {"eval/mean_return": [(1000, 5.0), (2000, 10.0)],
-         "train/loss": [(1000, 0.5)]},
+        {"eval/mean_return": [(1000, 5.0), (2000, 10.0)], "train/loss": [(1000, 0.5)]},
     )
     client.app.dependency_overrides[get_tb_root] = lambda: tb_root
 
@@ -469,7 +497,8 @@ def test_get_state_missing_404(client: TestClient):
 
 
 def test_get_state_returns_snapshot(
-    client: TestClient, episodes_registry: EpisodeRegistry,
+    client: TestClient,
+    episodes_registry: EpisodeRegistry,
 ):
     ep = _FakeRuntime(episode_id="ep-1")
     episodes_registry.register(ep)
@@ -483,7 +512,8 @@ def test_get_state_returns_snapshot(
 
 
 def test_get_frame_advances_state(
-    client: TestClient, episodes_registry: EpisodeRegistry,
+    client: TestClient,
+    episodes_registry: EpisodeRegistry,
 ):
     ep = _FakeRuntime(episode_id="ep-2", ends_after=3)
     episodes_registry.register(ep)
@@ -501,7 +531,8 @@ def test_get_frame_advances_state(
 
 
 def test_get_frame_idempotent_after_done(
-    client: TestClient, episodes_registry: EpisodeRegistry,
+    client: TestClient,
+    episodes_registry: EpisodeRegistry,
 ):
     ep = _FakeRuntime(episode_id="ep-3", ends_after=2)
     episodes_registry.register(ep)
@@ -523,7 +554,8 @@ def test_get_frame_missing_404(client: TestClient):
 
 
 def test_delete_episode_releases(
-    client: TestClient, episodes_registry: EpisodeRegistry,
+    client: TestClient,
+    episodes_registry: EpisodeRegistry,
 ):
     ep = _FakeRuntime(episode_id="ep-4")
     episodes_registry.register(ep)

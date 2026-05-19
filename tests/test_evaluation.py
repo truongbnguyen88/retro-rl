@@ -13,10 +13,9 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from retro_rl.evaluation.metrics import EpisodeResult, EvalMetrics, compute_metrics
 from retro_rl.evaluation.evaluator import evaluate
+from retro_rl.evaluation.metrics import EpisodeResult, compute_metrics
 from retro_rl.utils.video import write_mp4
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -135,7 +134,9 @@ def test_compute_metrics_empty_raises():
 
 def test_eval_metrics_is_frozen():
     m = compute_metrics([EpisodeResult(return_=1.0, length=5, stage_cleared=False, deaths=0)])
-    with pytest.raises(Exception):
+    # Frozen dataclass / pydantic model: assignment raises AttributeError
+    # (FrozenInstanceError subclasses AttributeError in 3.11+).
+    with pytest.raises(AttributeError):
         m.mean_return = 99.0  # type: ignore[misc]
 
 
@@ -196,8 +197,9 @@ def test_evaluate_truncation_not_counted_as_death():
 
 def test_evaluate_detects_stage_clear():
     env = _MockEnv(steps_per_episode=5, stage_clear_at_step=2)
-    metrics, _ = evaluate(_FixedAgent(), env, n_episodes=3,
-                           info_keys={"stage_clear": "stage_clear"})
+    metrics, _ = evaluate(
+        _FixedAgent(), env, n_episodes=3, info_keys={"stage_clear": "stage_clear"}
+    )
     assert metrics.stage_clear_rate == pytest.approx(1.0)
 
 
@@ -217,8 +219,7 @@ def test_evaluate_custom_info_key_for_stage_clear():
             return obs, r, term, trunc, info
 
     env = _GameoverEnv(steps_per_episode=5)
-    metrics, _ = evaluate(_FixedAgent(), env, n_episodes=2,
-                           info_keys={"stage_clear": "gameover"})
+    metrics, _ = evaluate(_FixedAgent(), env, n_episodes=2, info_keys={"stage_clear": "gameover"})
     assert metrics.stage_clear_rate == pytest.approx(1.0)
 
 

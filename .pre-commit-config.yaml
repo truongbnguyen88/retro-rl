@@ -1,0 +1,43 @@
+# Pre-commit hooks for retro-rl.
+#
+# Install once: `pip install -e ".[dev]" && pre-commit install`
+# Run on all files: `pre-commit run --all-files`
+#
+# Mypy runs in --no-strict-optional advisory mode (verbose=false, exit code
+# ignored). Type coverage in this repo is intentionally partial (public APIs
+# only); a blocking mypy would fail every commit until we backfill annotations.
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-toml
+      - id: check-merge-conflict
+      - id: check-added-large-files
+        args: ["--maxkb=512"]
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    # Keep in rough sync with the locally-installed ruff version so that
+    # pre-commit and the dev's `ruff` CLI flag the same rule set. UP038 was
+    # deprecated after 0.4.4; an old pin re-introduces it as a phantom error.
+    rev: v0.15.13
+    hooks:
+      - id: ruff
+        args: ["--fix"]
+      - id: ruff-format
+
+  # Mypy is advisory: it runs locally but never blocks a commit. We keep
+  # `verbose: false` and `pass_filenames: false` (mypy walks the package
+  # itself) plus `|| true` so a non-zero exit doesn't fail the hook.
+  - repo: local
+    hooks:
+      - id: mypy-advisory
+        name: mypy (advisory, never blocks)
+        entry: bash -c 'mypy src/retro_rl --ignore-missing-imports --no-strict-optional || true'
+        language: system
+        types: [python]
+        pass_filenames: false
+        verbose: false

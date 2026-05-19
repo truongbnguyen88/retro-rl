@@ -104,9 +104,7 @@ def run_phase(
         if term or trunc:
             ram_history = ram_history[: i + 1]
             fire_bits = fire_bits[: i + 1]
-            print(
-                f"  [warn] episode ended at frame {i} (term={term}, trunc={trunc})"
-            )
+            print(f"  [warn] episode ended at frame {i} (term={term}, trunc={trunc})")
             break
     return ram_history, fire_bits
 
@@ -136,11 +134,7 @@ def score_candidates(
     f_range = f_max - f_min
 
     mask = (
-        (f_range >= 1)
-        & (f_range <= 12)
-        & (f_max <= 16)
-        & (f_mean > nf_mean + 0.05)
-        & (nf_min == 0)
+        (f_range >= 1) & (f_range <= 12) & (f_max <= 16) & (f_mean > nf_mean + 0.05) & (nf_min == 0)
     )
 
     addrs = np.where(mask)[0]
@@ -211,16 +205,12 @@ def main():
 
         verify_known_addresses(env, np.zeros(1))
 
-        print(
-            f"\nPhase A (NO FIRE): {args.n_frames} frames, intro_skip={args.intro_skip}"
-        )
+        print(f"\nPhase A (NO FIRE): {args.n_frames} frames, intro_skip={args.intro_skip}")
         no_fire, _nf_bits = run_phase(
             env, args.n_frames, fire_period=None, skip_intro_frames=args.intro_skip
         )
 
-        print(
-            f"Phase B (TAP FIRE every {args.fire_period}): {args.n_frames} frames"
-        )
+        print(f"Phase B (TAP FIRE every {args.fire_period}): {args.n_frames} frames")
         fire, fire_bits = run_phase(
             env,
             args.n_frames,

@@ -28,7 +28,6 @@ from typing import Any
 import requests
 import streamlit as st
 
-
 DEFAULT_BACKEND_URL = "http://localhost:8000"
 
 

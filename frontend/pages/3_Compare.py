@@ -14,7 +14,6 @@ if str(_FRONTEND_DIR) not in sys.path:
     sys.path.insert(0, str(_FRONTEND_DIR))
 
 import streamlit as st  # noqa: E402
-
 from app import render_sidebar  # noqa: E402
 from components.api_client import (  # noqa: E402
     BackendError,
@@ -23,7 +22,6 @@ from components.api_client import (  # noqa: E402
     list_runs,
 )
 from components.plots import empty_placeholder, multi_line_chart  # noqa: E402
-
 
 st.set_page_config(page_title="Compare · retro-rl", layout="wide")
 render_sidebar()
@@ -109,7 +107,16 @@ st.subheader("Summary")
 rows = []
 for run, points in named_series.items():
     if not points:
-        rows.append({"run": run, "peak": "—", "peak_step": "—", "final": "—", "final_step": "—", "n_points": 0})
+        rows.append(
+            {
+                "run": run,
+                "peak": "—",
+                "peak_step": "—",
+                "final": "—",
+                "final_step": "—",
+                "n_points": 0,
+            }
+        )
         continue
     peak = max(points, key=lambda p: p["value"])
     final = points[-1]

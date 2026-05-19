@@ -73,9 +73,7 @@ def main():
 
     env = make_env(cfg, seed=args.seed)
     obs, info = env.reset(seed=args.seed)
-    print(
-        f"Initial: lives={info.get('lives', '?')}  score={info.get('score', '?')}"
-    )
+    print(f"Initial: lives={info.get('lives', '?')}  score={info.get('score', '?')}")
 
     Path(args.output).parent.mkdir(parents=True, exist_ok=True)
 
@@ -118,10 +116,7 @@ def main():
         prev_lives = lives
 
         if terminated or truncated:
-            print(
-                f"\nEpisode ended at step {step}: "
-                f"terminated={terminated}, truncated={truncated}"
-            )
+            print(f"\nEpisode ended at step {step}: terminated={terminated}, truncated={truncated}")
             break
 
     # ------------------------------------------------------------------
@@ -175,9 +170,7 @@ def main():
     # The critical check: kills + life-loss on the same step
     print("\n" + "-" * 76)
     coinciding = [r for r in rows if r["score_delta"] > 0 and r["lives_dropped"]]
-    print(
-        f"Kills coinciding with life loss (same policy step): {len(coinciding)}"
-    )
+    print(f"Kills coinciding with life loss (same policy step): {len(coinciding)}")
     for r in coinciding:
         print(
             f"  step {r['step']}  frames {r['frame_range']}  "
@@ -188,14 +181,10 @@ def main():
     near = []
     for r in life_losses:
         s = r["step"]
-        recent_kills = [
-            k for k in kills if 0 < s - k["step"] <= 5 and k is not r
-        ]
+        recent_kills = [k for k in kills if 0 < s - k["step"] <= 5 and k is not r]
         if recent_kills:
             near.append((r, recent_kills))
-    print(
-        f"\nLife losses preceded by a kill within 5 steps (~0.33s): {len(near)}"
-    )
+    print(f"\nLife losses preceded by a kill within 5 steps (~0.33s): {len(near)}")
     for life_row, recent in near:
         prev_kill = recent[-1]
         gap_steps = life_row["step"] - prev_kill["step"]

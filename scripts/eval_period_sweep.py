@@ -92,7 +92,9 @@ def main() -> None:
     ap.add_argument("--config", default=Path("configs/ppo.yaml"), type=Path)
     ap.add_argument("--periods", nargs="+", type=int, default=[4, 8, 12, 16, 24])
     ap.add_argument("--episodes", type=int, default=3)
-    ap.add_argument("--seed", type=int, default=10042, help="base eval seed (matches train.py eval_seed)")
+    ap.add_argument(
+        "--seed", type=int, default=10042, help="base eval seed (matches train.py eval_seed)"
+    )
     args = ap.parse_args()
 
     cfg = load_train_config(args.config)
@@ -142,7 +144,7 @@ def main() -> None:
             lengths = [r["length"] for r in ep_results]
             std_ret = statistics.stdev(returns) if len(returns) > 1 else 0.0
             print(
-                f"{p:>6}  {60/p:>8.2f}    "
+                f"{p:>6}  {60 / p:>8.2f}    "
                 f"{statistics.mean(returns):>9.2f}  {std_ret:>8.2f}    "
                 f"{statistics.mean(kills):>11.2f}  {statistics.mean(scores):>11.2f}  "
                 f"{statistics.mean(lengths):>11.1f}    {kills}"
@@ -170,8 +172,8 @@ def main() -> None:
         )
     elif delta < -10:
         print(
-            f"\nVERDICT: the trained policy is *tuned* to period=4. Inference-time changes hurt.\n"
-            f"         A v7 retrain with the new period is required to validate the slower-fire idea."
+            "\nVERDICT: the trained policy is *tuned* to period=4. Inference-time changes hurt.\n"
+            "         A v7 retrain with the new period is required to validate the slower-fire idea."
         )
     else:
         print(

@@ -126,11 +126,13 @@ def main() -> None:
 
         print(f"\nlives series: start={int(lives_h[0])} end={int(lives_h[-1])}")
         if not lives_drops:
-            print("!! No lives drop observed in the trace. Increase phase B duration "
-                  "or take damage faster.")
+            print(
+                "!! No lives drop observed in the trace. Increase phase B duration "
+                "or take damage faster."
+            )
         else:
             for t in lives_drops:
-                print(f"  lives {int(lives_h[t-1])} → {int(lives_h[t])} at emu frame {t}")
+                print(f"  lives {int(lives_h[t - 1])} → {int(lives_h[t])} at emu frame {t}")
 
         # ---- Slot bit transitions per slot
         print("\n  slot   0→1   1→0   first_set@   last_set@   value@final")
@@ -182,11 +184,15 @@ def main() -> None:
                 if (np.diff(col) < 0).any():
                     cleared.append(k)
             if cleared:
-                print(f"  RESPAWN CLEARS TICKETS: slots {cleared} dropped 1→0 within "
-                      f"20 emu frames of the lives decrement at t={t_drop}.")
+                print(
+                    f"  RESPAWN CLEARS TICKETS: slots {cleared} dropped 1→0 within "
+                    f"20 emu frames of the lives decrement at t={t_drop}."
+                )
             else:
-                print(f"  RESPAWN DOES NOT CLEAR TICKETS: no slot 0..9 went 1→0 within "
-                      f"20 emu frames of the lives drop at t={t_drop}.")
+                print(
+                    f"  RESPAWN DOES NOT CLEAR TICKETS: no slot 0..9 went 1→0 within "
+                    f"20 emu frames of the lives drop at t={t_drop}."
+                )
 
             # Did Phase C presses claim new tickets?
             phase_c_start = phase_a_frames + phase_b_frames
@@ -196,11 +202,15 @@ def main() -> None:
                 post = slot_h[phase_c_end - 1, :10]
                 newly_set = [k for k in range(10) if int(post[k]) > 0 and int(pre[k]) == 0]
                 if newly_set:
-                    print(f"  POST-RESPAWN FIRE WORKS: slots {newly_set} went 0→1 "
-                          f"during phase C presses.")
+                    print(
+                        f"  POST-RESPAWN FIRE WORKS: slots {newly_set} went 0→1 "
+                        f"during phase C presses."
+                    )
                 else:
-                    print(f"  POST-RESPAWN FIRE FAILED: no new slot 0..9 set during "
-                          f"phase C — tickets do not refill after respawn.")
+                    print(
+                        "  POST-RESPAWN FIRE FAILED: no new slot 0..9 set during "
+                        "phase C — tickets do not refill after respawn."
+                    )
             else:
                 print("  (episode ended before phase C completed)")
 

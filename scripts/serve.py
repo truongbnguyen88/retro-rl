@@ -34,9 +34,7 @@ if _src_path not in sys.path:
     sys.path.insert(0, _src_path)
 _existing_pp = os.environ.get("PYTHONPATH", "")
 if _src_path not in _existing_pp.split(os.pathsep):
-    os.environ["PYTHONPATH"] = (
-        _src_path + (os.pathsep + _existing_pp if _existing_pp else "")
-    )
+    os.environ["PYTHONPATH"] = _src_path + (os.pathsep + _existing_pp if _existing_pp else "")
 
 import uvicorn  # noqa: E402
 
@@ -46,27 +44,37 @@ from retro_rl.backend.api import create_app  # noqa: E402
 def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     p = argparse.ArgumentParser(description="Serve the retro-rl FastAPI backend.")
     p.add_argument(
-        "--host", default="127.0.0.1",
+        "--host",
+        default="127.0.0.1",
         help="Bind address (default: 127.0.0.1; use 0.0.0.0 to expose to LAN)",
     )
     p.add_argument(
-        "--port", type=int, default=8000,
+        "--port",
+        type=int,
+        default=8000,
         help="Bind port (default: 8000)",
     )
     p.add_argument(
-        "--checkpoint-root", type=Path, default=Path("outputs/checkpoints"),
+        "--checkpoint-root",
+        type=Path,
+        default=Path("outputs/checkpoints"),
         help="Directory with run subdirectories (default: outputs/checkpoints)",
     )
     p.add_argument(
-        "--tensorboard-root", type=Path, default=Path("outputs/tensorboard"),
+        "--tensorboard-root",
+        type=Path,
+        default=Path("outputs/tensorboard"),
         help="Directory with TB log subdirectories (default: outputs/tensorboard)",
     )
     p.add_argument(
-        "--agent-cache-size", type=int, default=4,
+        "--agent-cache-size",
+        type=int,
+        default=4,
         help="LRU cap on the AgentRegistry (default: 4)",
     )
     p.add_argument(
-        "--log-level", default="info",
+        "--log-level",
+        default="info",
         choices=["debug", "info", "warning", "error", "critical"],
         help="uvicorn log level (default: info)",
     )

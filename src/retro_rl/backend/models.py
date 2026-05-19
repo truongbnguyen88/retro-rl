@@ -23,7 +23,6 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-
 # ---------------------------------------------------------------------------
 # Health
 # ---------------------------------------------------------------------------
@@ -35,7 +34,7 @@ class HealthResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     status: Literal["ok"] = "ok"
-    version: str          # retro_rl package version
+    version: str  # retro_rl package version
     uptime_seconds: float = Field(..., ge=0.0)
 
 
@@ -49,13 +48,13 @@ class CheckpointInfo(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    id: str                       # "<run_name>/<kind>" — client-facing handle
+    id: str  # "<run_name>/<kind>" — client-facing handle
     run_name: str
     kind: Literal["step", "best"]
     step: int = Field(..., ge=0)
-    eval_return: float | None     # None when sidecar has no eval signal
-    timestamp: str                # ISO-8601 from sidecar
-    path: str                     # repo-relative .zip path (frontend may display)
+    eval_return: float | None  # None when sidecar has no eval signal
+    timestamp: str  # ISO-8601 from sidecar
+    path: str  # repo-relative .zip path (frontend may display)
 
 
 class CheckpointList(BaseModel):
@@ -76,7 +75,7 @@ class EpisodeStartRequest(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    checkpoint_id: str                          # e.g. "ppo_airstriker/best"
+    checkpoint_id: str  # e.g. "ppo_airstriker/best"
     seed: int | None = None
     deterministic: bool = True
     max_steps: int | None = Field(default=None, ge=1)  # override env max_episode_steps
@@ -87,9 +86,9 @@ class EpisodeStartResponse(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    episode_id: str               # uuid4 hex
+    episode_id: str  # uuid4 hex
     checkpoint_id: str
-    started_at: str               # ISO-8601
+    started_at: str  # ISO-8601
 
 
 class EpisodeState(BaseModel):
@@ -108,7 +107,7 @@ class EpisodeState(BaseModel):
     terminated: bool
     truncated: bool
     done: bool
-    last_action: int | None       # None before any step has happened
+    last_action: int | None  # None before any step has happened
     info: dict[str, Any] = Field(default_factory=dict)
 
 
@@ -127,7 +126,7 @@ class RunInfo(BaseModel):
     best_return: float | None
     latest_step: int | None
     checkpoint_count: int = Field(..., ge=0)
-    config_snapshot_path: str | None    # repo-relative path to config_snapshot.json
+    config_snapshot_path: str | None  # repo-relative path to config_snapshot.json
 
 
 class RunList(BaseModel):

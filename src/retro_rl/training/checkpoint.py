@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import json
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -27,7 +27,7 @@ from stable_baselines3 import PPO
 
 
 def _utc_iso() -> str:
-    return datetime.now(timezone.utc).isoformat(timespec="seconds")
+    return datetime.now(UTC).isoformat(timespec="seconds")
 
 
 def _atomic_save_zip(model: PPO, path: Path) -> None:
@@ -125,18 +125,14 @@ class CheckpointManager:
 
     # -------------------------------------------------------------- helpers
 
-    def _sidecar_payload(
-        self, step: int, eval_return: float | None, kind: str
-    ) -> dict[str, Any]:
+    def _sidecar_payload(self, step: int, eval_return: float | None, kind: str) -> dict[str, Any]:
         return {
             "run_name": self.run_name,
             "step": step,
             "eval_return": eval_return,
             "kind": kind,
             "config_snapshot_path": (
-                str(self.config_snapshot_path)
-                if self.config_snapshot_path is not None
-                else None
+                str(self.config_snapshot_path) if self.config_snapshot_path is not None else None
             ),
             "timestamp": _utc_iso(),
         }

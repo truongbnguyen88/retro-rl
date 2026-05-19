@@ -124,7 +124,9 @@ def run_period(period: int) -> dict:
 
         # Score timeline: first frame at which score equals its final value
         final_score = int(score[-1])
-        last_score_change = int(np.where(np.diff(score) != 0)[0].max()) + 1 if (np.diff(score) != 0).any() else -1
+        last_score_change = (
+            int(np.where(np.diff(score) != 0)[0].max()) + 1 if (np.diff(score) != 0).any() else -1
+        )
 
         return {
             "period": period,
@@ -149,7 +151,7 @@ def run_period(period: int) -> dict:
 
 
 def cmd_run(args: argparse.Namespace) -> None:
-    print(f"\n  period={args.period:>3}  (B every {args.period} frames, {60/args.period:.1f} Hz)")
+    print(f"\n  period={args.period:>3}  (B every {args.period} frames, {60 / args.period:.1f} Hz)")
     r = run_period(args.period)
     for k, v in r.items():
         print(f"    {k:>26} = {v}")
@@ -166,8 +168,10 @@ def cmd_summarise(args: argparse.Namespace) -> None:
     print("\n" + "=" * 96)
     print("SUMMARY")
     print("=" * 96)
-    print(f"{'period':>6}  {'rate(Hz)':>8}  {'freeze@':>8}  {'lastScore@':>11}  "
-          f"{'1stDeath@':>10}  {'presses_b4':>11}  {'finalScore':>11}  {'finalLives':>10}")
+    print(
+        f"{'period':>6}  {'rate(Hz)':>8}  {'freeze@':>8}  {'lastScore@':>11}  "
+        f"{'1stDeath@':>10}  {'presses_b4':>11}  {'finalScore':>11}  {'finalLives':>10}"
+    )
     for r in results:
         print(
             f"{r['period']:>6}  {r['press_rate_hz']:>8.2f}  "
@@ -194,7 +198,9 @@ def cmd_summarise(args: argparse.Namespace) -> None:
     if spread < 30:
         print("\nVERDICT: STATE-DRIVEN — freeze frame is ~constant across periods.")
         print("         Slowing AutoFire will NOT fix it. Need to find the trigger state.")
-    elif np.array_equal(fr_arr.argsort()[::-1], np.array([list(range(len(fr_arr)))]).flatten()[::-1]):
+    elif np.array_equal(
+        fr_arr.argsort()[::-1], np.array([list(range(len(fr_arr)))]).flatten()[::-1]
+    ):
         print("\nVERDICT: RATE-DRIVEN — faster B presses produce earlier freeze.")
     else:
         print("\nVERDICT: MIXED / NOISY — inspect per-period rows above.")
@@ -209,7 +215,9 @@ def main() -> None:
     run.add_argument("--out", type=Path, required=True)
 
     summ = sub.add_parser("summarise", help="Summarise multiple JSON outputs")
-    summ.add_argument("--inputs", required=True, help="Glob pattern, e.g. 'outputs/diagnostics/fire_rvs_*.json'")
+    summ.add_argument(
+        "--inputs", required=True, help="Glob pattern, e.g. 'outputs/diagnostics/fire_rvs_*.json'"
+    )
 
     # Backward-compat: also accept --period / --out directly for the run subcommand
     ap.add_argument("--period", type=int)
@@ -220,9 +228,7 @@ def main() -> None:
     args = ap.parse_args()
     if args.cmd == "run":
         cmd_run(args)
-    elif args.cmd == "summarise":
-        cmd_summarise(args)
-    elif args.summarise:
+    elif args.cmd == "summarise" or args.summarise:
         cmd_summarise(args)
     elif args.period is not None and args.out is not None:
         cmd_run(args)

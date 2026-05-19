@@ -16,8 +16,8 @@ We deliberately do **not** subclass :class:`PPO`. SB3 already exposes
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from pathlib import Path
-from typing import Callable
 
 from stable_baselines3 import PPO
 from stable_baselines3.common.vec_env import VecEnv

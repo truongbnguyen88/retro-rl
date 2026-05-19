@@ -32,9 +32,7 @@ from retro_rl.utils import get_logger, load_env_config, set_global_seed
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument(
-        "--config", type=Path, required=True, help="path to env YAML"
-    )
+    parser.add_argument("--config", type=Path, required=True, help="path to env YAML")
     parser.add_argument("--episodes", type=int, default=1)
     parser.add_argument(
         "--fps",

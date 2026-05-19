@@ -14,10 +14,10 @@ import numpy as np
 class EpisodeResult:
     """Single-episode outcome collected by :func:`evaluate`."""
 
-    return_: float        # cumulative reward received during the episode
-    length: int           # number of env steps taken
-    stage_cleared: bool   # True if the stage-clear flag fired at any step
-    deaths: int           # count of ``terminated=True`` events (not truncations)
+    return_: float  # cumulative reward received during the episode
+    length: int  # number of env steps taken
+    stage_cleared: bool  # True if the stage-clear flag fired at any step
+    deaths: int  # count of ``terminated=True`` events (not truncations)
 
 
 @dataclass(frozen=True)
@@ -31,8 +31,8 @@ class EvalMetrics:
     max_return: float
     mean_length: float
     std_length: float
-    stage_clear_rate: float   # fraction of episodes where stage was cleared
-    mean_deaths: float        # mean deaths per episode
+    stage_clear_rate: float  # fraction of episodes where stage was cleared
+    mean_deaths: float  # mean deaths per episode
 
 
 def compute_metrics(episodes: list[EpisodeResult]) -> EvalMetrics:

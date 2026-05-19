@@ -32,7 +32,6 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from stable_baselines3 import PPO  # noqa: E402
 
-from retro_rl.env import make_env  # noqa: E402
 from retro_rl.env.wrappers import AutoFireWrapper  # noqa: E402
 from retro_rl.utils.config import load_env_config  # noqa: E402
 
@@ -88,9 +87,7 @@ def main() -> None:
     # the standard one. We replicate apply_wrappers' order verbatim.
     import retro  # noqa: PLC0415
 
-    raw = retro.make(
-        game=cfg.game, state=cfg.state, scenario=cfg.scenario, render_mode="rgb_array"
-    )
+    raw = retro.make(game=cfg.game, state=cfg.state, scenario=cfg.scenario, render_mode="rgb_array")
 
     fire_log: list[dict] = []
     env = AutoFireSpy(raw, cfg.auto_fire, log=fire_log)
@@ -142,7 +139,12 @@ def main() -> None:
                 cv2.putText(
                     bgr,
                     f"step={step_i} action={int(action)}",
-                    (4, 18), cv2.FONT_HERSHEY_PLAIN, 0.8, (255, 255, 255), 1, cv2.LINE_AA,
+                    (4, 18),
+                    cv2.FONT_HERSHEY_PLAIN,
+                    0.8,
+                    (255, 255, 255),
+                    1,
+                    cv2.LINE_AA,
                 )
                 cv2.imwrite(str(OUT_DIR / f"step_{step_i:04d}.png"), bgr)
 
@@ -174,7 +176,7 @@ def main() -> None:
     print(f"\nemu frames: {len(fire_log)}")
     print(f"outer steps: {len(rows)}")
     bits = np.array([r["bit"] for r in fire_log])
-    print(f"AutoFire B=1 fraction: {bits.mean():.3f} (expected ~{1/cfg.auto_fire.period:.3f})")
+    print(f"AutoFire B=1 fraction: {bits.mean():.3f} (expected ~{1 / cfg.auto_fire.period:.3f})")
     # Per-life fire pattern
     lives_arr = np.array([r["lives"] for r in fire_log])
     life_breaks = [0]

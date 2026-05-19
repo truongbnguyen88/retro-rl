@@ -25,6 +25,7 @@ we want here. No coroutines, no event-loop blocking concerns.
 
 from __future__ import annotations
 
+import contextlib
 import logging
 import time
 from contextlib import asynccontextmanager
@@ -133,7 +134,8 @@ def create_app(
         app.state.started_at = time.monotonic()
         logger.info(
             "retro-rl backend up: checkpoints=%s tensorboard=%s",
-            ckpt_root, tb_root,
+            ckpt_root,
+            tb_root,
         )
         try:
             yield
@@ -210,7 +212,7 @@ def _register_routes(app: FastAPI) -> None:
         try:
             return _load_run_metrics(run_name, tb_root)
         except FileNotFoundError as e:
-            raise HTTPException(status_code=404, detail=str(e))
+            raise HTTPException(status_code=404, detail=str(e)) from e
 
     # ---- episodes (stateful, client-driven) ------------------------------
 
@@ -230,7 +232,7 @@ def _register_routes(app: FastAPI) -> None:
             agent = agents.get(req.checkpoint_id)
             env_cfg = resolver.env_config_for(req.checkpoint_id)
         except CheckpointNotFoundError as e:
-            raise HTTPException(status_code=404, detail=str(e))
+            raise HTTPException(status_code=404, detail=str(e)) from e
 
         ep = EpisodeRuntime.start(
             checkpoint_id=req.checkpoint_id,
@@ -243,7 +245,10 @@ def _register_routes(app: FastAPI) -> None:
         episodes.register(ep)
         logger.info(
             "started episode %s on %s (seed=%s deterministic=%s)",
-            ep.episode_id, req.checkpoint_id, req.seed, req.deterministic,
+            ep.episode_id,
+            req.checkpoint_id,
+            req.seed,
+            req.deterministic,
         )
         return EpisodeStartResponse(
             episode_id=ep.episode_id,
@@ -263,7 +268,7 @@ def _register_routes(app: FastAPI) -> None:
         try:
             ep = episodes.get(episode_id)
         except EpisodeNotFoundError as e:
-            raise HTTPException(status_code=404, detail=str(e))
+            raise HTTPException(status_code=404, detail=str(e)) from e
         return ep.state()
 
     @app.get(
@@ -285,14 +290,12 @@ def _register_routes(app: FastAPI) -> None:
         try:
             ep = episodes.get(episode_id)
         except EpisodeNotFoundError as e:
-            raise HTTPException(status_code=404, detail=str(e))
+            raise HTTPException(status_code=404, detail=str(e)) from e
         if not ep.done:
-            try:
+            # Race: another thread may finish the episode between the `done`
+            # check and `step()`. Treat as done; serve the last frame.
+            with contextlib.suppress(EpisodeFinishedError):
                 ep.step()
-            except EpisodeFinishedError:
-                # Race: another thread finished the episode between the
-                # `done` check and `step()`. Treat as done; serve last frame.
-                pass
         return Response(content=ep.frame_png(), media_type="image/png")
 
     @app.delete(
@@ -308,7 +311,7 @@ def _register_routes(app: FastAPI) -> None:
         try:
             episodes.get(episode_id)
         except EpisodeNotFoundError as e:
-            raise HTTPException(status_code=404, detail=str(e))
+            raise HTTPException(status_code=404, detail=str(e)) from e
         episodes.remove(episode_id)
         return Response(status_code=204)
 
@@ -357,9 +360,7 @@ def _load_run_metrics(run_name: str, tb_root: Path) -> RunMetrics:
 
     candidates = [p for p in tb_root.glob(f"{run_name}_*") if p.is_dir()]
     if not candidates:
-        raise FileNotFoundError(
-            f"no TB log dir matching {run_name!r} in {tb_root}"
-        )
+        raise FileNotFoundError(f"no TB log dir matching {run_name!r} in {tb_root}")
     tb_dir = max(candidates, key=lambda p: p.stat().st_mtime)
 
     # Lazy import — tensorboard is heavy and only this route needs it.

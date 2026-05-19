@@ -135,7 +135,9 @@ def main() -> None:
         print("\n--- summary ---")
         print(f"  total frames:                {len(rows)}")
         print(f"  total B presses:             {int(presses.sum())}")
-        print(f"  active_sum: min/mean/max     {int(sums.min())}/{sums.mean():.2f}/{int(sums.max())}")
+        print(
+            f"  active_sum: min/mean/max     {int(sums.min())}/{sums.mean():.2f}/{int(sums.max())}"
+        )
         print(f"  score: start/end             {int(scores[0])} / {int(scores[-1])}")
 
         # When does a press translate to a slot-sum increase within next 4 frames?
@@ -157,11 +159,11 @@ def main() -> None:
         if total:
             print(
                 f"  presses that raised active_sum within 4 frames: "
-                f"{effective}/{total} = {effective/total:.1%}"
+                f"{effective}/{total} = {effective / total:.1%}"
             )
             print(
                 f"  presses that did NOT raise active_sum (cap hit?): "
-                f"{ineffective}/{total} = {ineffective/total:.1%}"
+                f"{ineffective}/{total} = {ineffective / total:.1%}"
             )
 
         # Print sample timeline

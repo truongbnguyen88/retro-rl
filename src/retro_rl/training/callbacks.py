@@ -21,8 +21,8 @@ Configure cadences so this is rare (e.g. eval at 100k, ckpt at 250k).
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from pathlib import Path
-from typing import Callable
 
 import gymnasium as gym
 import numpy as np
@@ -47,9 +47,7 @@ class PeriodicCheckpointCallback(BaseCallback):
         if self.num_timesteps < self._next_save:
             return True
         self.manager.save(self.model, self.num_timesteps, eval_return=None)
-        self._next_save = (
-            (self.num_timesteps // self.every_steps) + 1
-        ) * self.every_steps
+        self._next_save = ((self.num_timesteps // self.every_steps) + 1) * self.every_steps
         return True
 
 
@@ -87,9 +85,7 @@ class EntCoefLinearSchedule(BaseCallback):
         if total_timesteps <= 0:
             raise ValueError(f"total_timesteps must be > 0, got {total_timesteps}")
         if initial < 0 or final < 0:
-            raise ValueError(
-                f"ent_coef bounds must be >= 0; got initial={initial}, final={final}"
-            )
+            raise ValueError(f"ent_coef bounds must be >= 0; got initial={initial}, final={final}")
         self.initial = float(initial)
         self.final = float(final)
         self.total_timesteps = int(total_timesteps)
@@ -188,11 +184,11 @@ class EvalAndVideoCallback(BaseCallback):
         self.manager.save(self.model, self.num_timesteps, eval_return=mean_return)
 
         if self.video_dir is not None and frames:
-            write_mp4(frames, self.video_dir / f"eval-step-{self.num_timesteps}.mp4", fps=self.video_fps)
+            write_mp4(
+                frames, self.video_dir / f"eval-step-{self.num_timesteps}.mp4", fps=self.video_fps
+            )
 
-        self._next_eval = (
-            (self.num_timesteps // self.every_steps) + 1
-        ) * self.every_steps
+        self._next_eval = ((self.num_timesteps // self.every_steps) + 1) * self.every_steps
         return True
 
     def _on_training_end(self) -> None:

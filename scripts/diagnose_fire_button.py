@@ -66,7 +66,9 @@ def main():
 
     print("Tap pattern: 1 frame ON, N frames OFF, 600 frames total")
     print("-" * 76)
-    print(f"  {'button':>8}  {'on=1,off=1':>14}  {'on=1,off=3':>14}  {'on=1,off=7':>14}  {'on=2,off=2':>14}")
+    print(
+        f"  {'button':>8}  {'on=1,off=1':>14}  {'on=1,off=3':>14}  {'on=1,off=7':>14}  {'on=2,off=2':>14}"
+    )
     for btn in CANDIDATE_FIRE:
         scores = []
         for on, off in [(1, 1), (1, 3), (1, 7), (2, 2)]:

@@ -27,9 +27,7 @@ if _src_path not in sys.path:
     sys.path.insert(0, _src_path)
 _existing_pp = os.environ.get("PYTHONPATH", "")
 if _src_path not in _existing_pp.split(os.pathsep):
-    os.environ["PYTHONPATH"] = (
-        _src_path + (os.pathsep + _existing_pp if _existing_pp else "")
-    )
+    os.environ["PYTHONPATH"] = _src_path + (os.pathsep + _existing_pp if _existing_pp else "")
 
 from retro_rl.training.trainer import train  # noqa: E402
 from retro_rl.utils.config import load_train_config  # noqa: E402

@@ -57,8 +57,14 @@ def train(cfg: TrainConfig, resume_from: Path | None = None) -> Path:
         video_dir.mkdir(parents=True, exist_ok=True)
 
     log = get_logger(name=f"retro_rl.train.{cfg.run_name}", run_dir=run_dir)
-    log.info("run_name=%s seed=%d total_timesteps=%d n_envs=%d resume=%s",
-             cfg.run_name, cfg.seed, cfg.total_timesteps, cfg.n_envs, resume_from)
+    log.info(
+        "run_name=%s seed=%d total_timesteps=%d n_envs=%d resume=%s",
+        cfg.run_name,
+        cfg.seed,
+        cfg.total_timesteps,
+        cfg.n_envs,
+        resume_from,
+    )
 
     config_snapshot_path = run_dir / "config_snapshot.json"
     config_snapshot_path.write_text(json.dumps(cfg.model_dump(mode="json"), indent=2, default=str))
@@ -110,7 +116,9 @@ def train(cfg: TrainConfig, resume_from: Path | None = None) -> Path:
         )
         log.info(
             "ent_coef schedule: linear %.4g → %.4g over %d steps",
-            cfg.ppo.ent_coef, cfg.ppo.ent_coef_final, cfg.total_timesteps,
+            cfg.ppo.ent_coef,
+            cfg.ppo.ent_coef_final,
+            cfg.total_timesteps,
         )
     callbacks = CallbackList(callback_list)
 
@@ -149,6 +157,7 @@ def _build_vec_env(cfg: TrainConfig):
 
 def _build_eval_env_factory(cfg: TrainConfig, eval_seed: int):
     """Closure: (record_video: bool) -> single gym.Env for deterministic eval."""
+
     def _factory(record_video: bool) -> gym.Env:
         return make_env(
             cfg.env,

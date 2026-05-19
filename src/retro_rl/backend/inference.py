@@ -44,7 +44,7 @@ import logging
 import threading
 import uuid
 from collections import OrderedDict
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -93,9 +93,7 @@ def _parse_checkpoint_id(checkpoint_id: str) -> tuple[str, str]:
         )
     run_name, kind = checkpoint_id.split("/", 1)
     if not (kind == "best" or kind.startswith("step-")):
-        raise CheckpointNotFoundError(
-            f"checkpoint kind must be 'best' or 'step-<N>', got {kind!r}"
-        )
+        raise CheckpointNotFoundError(f"checkpoint kind must be 'best' or 'step-<N>', got {kind!r}")
     return run_name, kind
 
 
@@ -119,9 +117,7 @@ class CheckpointResolver:
         run_name, kind = _parse_checkpoint_id(checkpoint_id)
         path = self.root / run_name / f"{kind}.zip"
         if not path.is_file():
-            raise CheckpointNotFoundError(
-                f"checkpoint not found on disk: {path}"
-            )
+            raise CheckpointNotFoundError(f"checkpoint not found on disk: {path}")
         return path
 
     def env_config_for(self, checkpoint_id: str) -> EnvConfig:
@@ -135,9 +131,7 @@ class CheckpointResolver:
         data = json.loads(snap_path.read_text())
         env_data = data.get("env")
         if env_data is None:
-            raise CheckpointNotFoundError(
-                f"config_snapshot.json for {run_name!r} has no 'env' key"
-            )
+            raise CheckpointNotFoundError(f"config_snapshot.json for {run_name!r} has no 'env' key")
         return EnvConfig.model_validate(env_data)
 
     # ---- enumeration -----------------------------------------------------
@@ -160,9 +154,7 @@ class CheckpointResolver:
                     out.append(info)
         return out
 
-    def _sidecar_to_info(
-        self, sidecar: Path, zip_path: Path
-    ) -> CheckpointInfo | None:
+    def _sidecar_to_info(self, sidecar: Path, zip_path: Path) -> CheckpointInfo | None:
         try:
             meta = json.loads(sidecar.read_text())
         except (OSError, json.JSONDecodeError) as e:
@@ -362,7 +354,7 @@ class EpisodeRuntime:
         seed: int | None = None,
         deterministic: bool = True,
         max_steps: int | None = None,
-    ) -> "EpisodeRuntime":
+    ) -> EpisodeRuntime:
         """Build env, reset, capture initial frame. Returns a ready runtime."""
         env = make_env(env_cfg, seed=seed, render_mode="rgb_array")
         runtime = cls(
@@ -377,7 +369,7 @@ class EpisodeRuntime:
         runtime._obs = obs
         runtime._last_info = _json_safe(info) if info else {}
         runtime._last_frame = runtime._render()
-        runtime._started_at = datetime.now(tz=timezone.utc).isoformat()
+        runtime._started_at = datetime.now(tz=UTC).isoformat()
         return runtime
 
     def close(self) -> None:
@@ -388,8 +380,7 @@ class EpisodeRuntime:
             try:
                 self._env.close()
             except Exception as e:  # pragma: no cover — env teardown is fire-and-forget
-                logger.warning("error closing env for episode %s: %s",
-                               self.episode_id, e)
+                logger.warning("error closing env for episode %s: %s", self.episode_id, e)
             finally:
                 self._closed = True
 

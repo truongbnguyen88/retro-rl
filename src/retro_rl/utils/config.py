@@ -21,7 +21,6 @@ from typing import Any
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-
 # ---------------------------------------------------------------------------
 # Env / reward schemas
 # ---------------------------------------------------------------------------
@@ -129,9 +128,7 @@ class EnvConfig(BaseModel):
 
     @field_validator("action_combos")
     @classmethod
-    def _validate_action_combos(
-        cls, v: list[list[int]] | None
-    ) -> list[list[int]] | None:
+    def _validate_action_combos(cls, v: list[list[int]] | None) -> list[list[int]] | None:
         if v is None:
             return None
         if not v:
@@ -303,9 +300,7 @@ def load_train_config(path: str | Path) -> TrainConfig:
 
     env_path_raw = data.pop("env_config", None)
     if env_path_raw is None:
-        raise ValueError(
-            f"train config at {path} is missing required field 'env_config'"
-        )
+        raise ValueError(f"train config at {path} is missing required field 'env_config'")
     env_path = Path(env_path_raw)
     if not env_path.is_absolute():
         env_path = Path.cwd() / env_path

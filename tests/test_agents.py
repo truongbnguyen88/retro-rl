@@ -26,7 +26,6 @@ from retro_rl.agents.ppo import build_ppo, linear_schedule
 from retro_rl.agents.random_agent import RandomAgent
 from retro_rl.utils.config import EnvConfig, PPOHyperparams, TrainConfig
 
-
 # ---------------------------------------------------------------------------
 # Stub env — post-wrapper shape, no stable-retro
 # ---------------------------------------------------------------------------
@@ -38,9 +37,7 @@ class StubWrappedEnv(gym.Env):
     metadata = {"render_modes": []}
 
     def __init__(self, episode_len: int = 32):
-        self.observation_space = spaces.Box(
-            low=0, high=255, shape=(84, 84, 4), dtype=np.uint8
-        )
+        self.observation_space = spaces.Box(low=0, high=255, shape=(84, 84, 4), dtype=np.uint8)
         self.action_space = spaces.Discrete(8)
         self._rng = np.random.default_rng(0)
         self._t = 0

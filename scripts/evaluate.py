@@ -42,18 +42,33 @@ from retro_rl.utils.video import write_mp4
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Evaluate a retro-rl checkpoint.")
-    parser.add_argument("--checkpoint", required=True, type=Path,
-                        help="Path to a .zip checkpoint produced by train.py.")
-    parser.add_argument("--config", required=True, type=Path,
-                        help="Training config YAML (used for env settings).")
-    parser.add_argument("--episodes", type=int, default=20,
-                        help="Number of deterministic evaluation episodes (default: 20).")
-    parser.add_argument("--seed", type=int, default=42,
-                        help="Env seed for evaluation (default: 42).")
-    parser.add_argument("--no-video", action="store_true", dest="no_video",
-                        help="Disable video recording.")
-    parser.add_argument("--output-dir", type=Path, default=None,
-                        help="Directory for metrics.json and episode_0.mp4.")
+    parser.add_argument(
+        "--checkpoint",
+        required=True,
+        type=Path,
+        help="Path to a .zip checkpoint produced by train.py.",
+    )
+    parser.add_argument(
+        "--config", required=True, type=Path, help="Training config YAML (used for env settings)."
+    )
+    parser.add_argument(
+        "--episodes",
+        type=int,
+        default=20,
+        help="Number of deterministic evaluation episodes (default: 20).",
+    )
+    parser.add_argument(
+        "--seed", type=int, default=42, help="Env seed for evaluation (default: 42)."
+    )
+    parser.add_argument(
+        "--no-video", action="store_true", dest="no_video", help="Disable video recording."
+    )
+    parser.add_argument(
+        "--output-dir",
+        type=Path,
+        default=None,
+        help="Directory for metrics.json and episode_0.mp4.",
+    )
     args = parser.parse_args()
 
     if not args.checkpoint.exists():
@@ -69,7 +84,11 @@ def main() -> None:
     log = get_logger(name="retro_rl.evaluate", run_dir=out_dir)
     log.info(
         "checkpoint=%s episodes=%d seed=%d video=%s output=%s",
-        args.checkpoint, args.episodes, args.seed, record_video, out_dir,
+        args.checkpoint,
+        args.episodes,
+        args.seed,
+        record_video,
+        out_dir,
     )
 
     render_mode = "rgb_array" if record_video else None
@@ -95,10 +114,12 @@ def main() -> None:
     metrics_path.write_text(json.dumps(asdict(metrics), indent=2))
     log.info("metrics → %s", metrics_path)
     log.info(
-        "mean_return=%.2f std=%.2f mean_length=%.1f "
-        "stage_clear_rate=%.2f deaths/ep=%.2f",
-        metrics.mean_return, metrics.std_return, metrics.mean_length,
-        metrics.stage_clear_rate, metrics.mean_deaths,
+        "mean_return=%.2f std=%.2f mean_length=%.1f stage_clear_rate=%.2f deaths/ep=%.2f",
+        metrics.mean_return,
+        metrics.std_return,
+        metrics.mean_length,
+        metrics.stage_clear_rate,
+        metrics.mean_deaths,
     )
 
     if record_video and frames:
@@ -107,8 +128,7 @@ def main() -> None:
         log.info("video → %s", video_path)
     elif record_video:
         log.warning(
-            "record_video=True but no frames collected "
-            "(env render_mode may not be 'rgb_array')"
+            "record_video=True but no frames collected (env render_mode may not be 'rgb_array')"
         )
 
     print(f"\n=== Evaluation complete ({args.episodes} episodes) ===")

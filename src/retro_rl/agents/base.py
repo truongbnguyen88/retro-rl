@@ -37,7 +37,7 @@ class Agent(Protocol):
         ...
 
     @classmethod
-    def load(cls, path: str | Path, **kwargs: Any) -> "Agent":
+    def load(cls, path: str | Path, **kwargs: Any) -> Agent:
         """Restore an agent previously saved to ``path``."""
         ...
 

@@ -39,9 +39,7 @@ def get_logger(
     if run_dir is not None:
         run_dir = Path(run_dir)
         run_dir.mkdir(parents=True, exist_ok=True)
-        fh = RotatingFileHandler(
-            run_dir / "run.log", maxBytes=10_000_000, backupCount=3
-        )
+        fh = RotatingFileHandler(run_dir / "run.log", maxBytes=10_000_000, backupCount=3)
         fh.setLevel(level)
         fh.setFormatter(logging.Formatter(_FILE_FMT))
         logger.addHandler(fh)

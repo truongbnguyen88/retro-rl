@@ -24,7 +24,6 @@ if str(_FRONTEND_DIR) not in sys.path:
     sys.path.insert(0, str(_FRONTEND_DIR))
 
 import streamlit as st  # noqa: E402
-
 from components.api_client import (  # noqa: E402
     BackendError,
     backend_url,
@@ -33,7 +32,6 @@ from components.api_client import (  # noqa: E402
     list_checkpoints,
     list_runs,
 )
-
 
 st.set_page_config(
     page_title="retro-rl dashboard",
@@ -72,12 +70,8 @@ def _runs_summary_table(runs: list[dict]) -> None:
         rows.append(
             {
                 "run": r["run_name"],
-                "best_return": (
-                    f"{r['best_return']:.2f}" if r["best_return"] is not None else "—"
-                ),
-                "latest_step": (
-                    f"{r['latest_step']:,}" if r["latest_step"] is not None else "—"
-                ),
+                "best_return": (f"{r['best_return']:.2f}" if r["best_return"] is not None else "—"),
+                "latest_step": (f"{r['latest_step']:,}" if r["latest_step"] is not None else "—"),
                 "checkpoints": r["checkpoint_count"],
                 "has_best": "yes" if r["has_best"] else "no",
             }

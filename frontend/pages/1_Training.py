@@ -14,7 +14,6 @@ if str(_FRONTEND_DIR) not in sys.path:
     sys.path.insert(0, str(_FRONTEND_DIR))
 
 import streamlit as st  # noqa: E402
-
 from app import render_sidebar  # noqa: E402
 from components.api_client import (  # noqa: E402
     BackendError,
@@ -23,7 +22,6 @@ from components.api_client import (  # noqa: E402
     list_runs,
 )
 from components.plots import empty_placeholder, line_chart  # noqa: E402
-
 
 st.set_page_config(page_title="Training · retro-rl", layout="wide")
 render_sidebar()
@@ -38,7 +36,9 @@ except BackendError as e:
     st.stop()
 
 if not runs:
-    st.info("No runs yet — kick off training with `python scripts/train.py --config configs/ppo.yaml`.")
+    st.info(
+        "No runs yet — kick off training with `python scripts/train.py --config configs/ppo.yaml`."
+    )
     st.stop()
 
 # Default selection: prefer a run that has eval metrics; else the alphabetical last.
@@ -103,8 +103,14 @@ _plot_panel("Eval", ["eval/mean_return", "eval/mean_length", "eval/std_return"])
 _plot_panel("Rollout", ["rollout/ep_rew_mean", "rollout/ep_len_mean"])
 _plot_panel(
     "Train",
-    ["train/approx_kl", "train/entropy_loss", "train/policy_gradient_loss",
-     "train/value_loss", "train/clip_fraction", "train/ent_coef"],
+    [
+        "train/approx_kl",
+        "train/entropy_loss",
+        "train/policy_gradient_loss",
+        "train/value_loss",
+        "train/clip_fraction",
+        "train/ent_coef",
+    ],
 )
 
 

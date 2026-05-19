@@ -118,8 +118,9 @@ def summarise(label: str, slot_h, fire_e, scores, lives) -> None:
     )
 
     # Per-slot transitions
-    print(f"  {'slot':>4}  {'0→1':>5}  {'1→0':>5}  "
-          f"{'max':>3}  {'first_set@':>11}  {'last_clr@':>10}")
+    print(
+        f"  {'slot':>4}  {'0→1':>5}  {'1→0':>5}  {'max':>3}  {'first_set@':>11}  {'last_clr@':>10}"
+    )
     for k in range(12):
         up, dn = transitions(slot_h[:, k])
         col = slot_h[:, k]
@@ -134,8 +135,7 @@ def summarise(label: str, slot_h, fire_e, scores, lives) -> None:
         else:
             last_clr_str = "n/a"
         print(
-            f"  {k:>4}  {up:>5}  {dn:>5}  {int(col.max()):>3}  "
-            f"{first_set:>11}  {last_clr_str:>10}"
+            f"  {k:>4}  {up:>5}  {dn:>5}  {int(col.max()):>3}  {first_set:>11}  {last_clr_str:>10}"
         )
 
     # Aggregate verdict
@@ -171,7 +171,7 @@ def main() -> None:
                 bits = "".join("1" if v > 0 else "0" for v in slot_h[i])
                 press = "P" if fire_e[i] else "."
                 print(
-                    f"    t={i:>4}  {press}  {bits}  sum={int((slot_h[i]>0).sum()):>2}  "
+                    f"    t={i:>4}  {press}  {bits}  sum={int((slot_h[i] > 0).sum()):>2}  "
                     f"score={int(scores[i]):>5}  lives={int(lives[i])}"
                 )
     finally:

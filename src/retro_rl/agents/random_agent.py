@@ -73,7 +73,7 @@ class RandomAgent:
         path.write_text(json.dumps(payload, indent=2))
 
     @classmethod
-    def load(cls, path: str | Path, **kwargs: Any) -> "RandomAgent":
+    def load(cls, path: str | Path, **kwargs: Any) -> RandomAgent:
         data = json.loads(Path(path).read_text())
         action_space = _action_space_from_json(data)
         return cls(action_space, seed=data.get("seed"))
@@ -86,9 +86,7 @@ def _action_space_to_json(space: spaces.Space) -> dict[str, Any]:
         return {"type": "MultiDiscrete", "nvec": [int(x) for x in space.nvec]}
     if isinstance(space, spaces.MultiBinary):
         return {"type": "MultiBinary", "n": int(space.n)}
-    raise NotImplementedError(
-        f"RandomAgent.save: unsupported action space {type(space).__name__}"
-    )
+    raise NotImplementedError(f"RandomAgent.save: unsupported action space {type(space).__name__}")
 
 
 def _action_space_from_json(data: dict[str, Any]) -> spaces.Space:

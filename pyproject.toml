@@ -63,6 +63,18 @@ target-version = "py311"
 select = ["E", "F", "I", "B", "UP", "SIM"]
 ignore = ["E501"]
 
+[tool.ruff.lint.per-file-ignores]
+# Diagnostic scripts: one-off investigations preserved for reference (v5→v7
+# fire-rate bug hunt, RAM/sprite probes). Not part of the production codepath;
+# relax rules around try/except teardown and write-only debug variables.
+"scripts/diagnose_*.py" = ["SIM105", "SIM108", "F841", "E402", "B007"]
+"scripts/eval_period_sweep.py" = ["SIM105"]
+"scripts/play_random.py" = ["SIM105"]
+# Entry-point scripts use sys.path shims before importing retro_rl, so
+# E402 (imports below the shim) is expected and intentional.
+"scripts/evaluate.py" = ["E402"]
+"scripts/serve.py" = ["E402"]
+
 [tool.black]
 line-length = 100
 target-version = ["py311"]
