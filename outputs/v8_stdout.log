@@ -1,0 +1,133 @@
+[05/19/26 15:01:17] INFO     run_name=ppo_airstriker_v8 seed=42                 
+                             total_timesteps=4000000 n_envs=8 resume=None       
+2026-05-19 15:01:19.478 Python[20851:29828009] ApplePersistenceIgnoreState: Existing state will not be touched. New state will be written to /var/folders/56/jqj8nyt12sxbm6rgrnlf06y00000gn/T/org.python.python.savedState
+2026-05-19 15:01:19.478 Python[20850:29828006] ApplePersistenceIgnoreState: Existing state will not be touched. New state will be written to /var/folders/56/jqj8nyt12sxbm6rgrnlf06y00000gn/T/org.python.python.savedState
+2026-05-19 15:01:19.479 Python[20848:29828000] ApplePersistenceIgnoreState: Existing state will not be touched. New state will be written to /var/folders/56/jqj8nyt12sxbm6rgrnlf06y00000gn/T/org.python.python.savedState
+2026-05-19 15:01:19.479 Python[20849:29828003] ApplePersistenceIgnoreState: Existing state will not be touched. New state will be written to /var/folders/56/jqj8nyt12sxbm6rgrnlf06y00000gn/T/org.python.python.savedState
+2026-05-19 15:01:19.479 Python[20846:29827992] ApplePersistenceIgnoreState: Existing state will not be touched. New state will be written to /var/folders/56/jqj8nyt12sxbm6rgrnlf06y00000gn/T/org.python.python.savedState
+2026-05-19 15:01:19.479 Python[20852:29828011] ApplePersistenceIgnoreState: Existing state will not be touched. New state will be written to /var/folders/56/jqj8nyt12sxbm6rgrnlf06y00000gn/T/org.python.python.savedState
+2026-05-19 15:01:19.479 Python[20853:29828012] ApplePersistenceIgnoreState: Existing state will not be touched. New state will be written to /var/folders/56/jqj8nyt12sxbm6rgrnlf06y00000gn/T/org.python.python.savedState
+2026-05-19 15:01:19.479 Python[20847:29827997] ApplePersistenceIgnoreState: Existing state will not be touched. New state will be written to /var/folders/56/jqj8nyt12sxbm6rgrnlf06y00000gn/T/org.python.python.savedState
+Using cpu device
+Wrapping the env in a VecTransposeImage.
+[05/19/26 15:01:20] INFO     ent_coef schedule: linear 0.02 → 0.001 over 4000000
+                             steps                                              
+Logging to outputs/tensorboard/ppo_airstriker_v8_1
+reward_shaping: info key 'x_pos' not present; corresponding term will be zero. Check the stable-retro integration's data.json.
+reward_shaping: info key 'x_pos' not present; corresponding term will be zero. Check the stable-retro integration's data.json.
+reward_shaping: info key 'x_pos' not present; corresponding term will be zero. Check the stable-retro integration's data.json.
+reward_shaping: info key 'x_pos' not present; corresponding term will be zero. Check the stable-retro integration's data.json.
+reward_shaping: info key 'x_pos' not present; corresponding term will be zero. Check the stable-retro integration's data.json.
+reward_shaping: info key 'x_pos' not present; corresponding term will be zero. Check the stable-retro integration's data.json.
+reward_shaping: info key 'x_pos' not present; corresponding term will be zero. Check the stable-retro integration's data.json.
+reward_shaping: info key 'x_pos' not present; corresponding term will be zero. Check the stable-retro integration's data.json.
+-------------------------------------------
+| rollout/                |               |
+|    ep_len_mean          | 387           |
+|    ep_rew_mean          | 191           |
+| time/                   |               |
+|    fps                  | 218           |
+|    iterations           | 10            |
+|    time_elapsed         | 46            |
+|    total_timesteps      | 10240         |
+| train/                  |               |
+|    approx_kl            | 0.00085144973 |
+|    clip_fraction        | 0.00195       |
+|    clip_range           | 0.0998        |
+|    ent_coef             | 0.02          |
+|    entropy_loss         | -2.19         |
+|    explained_variance   | 0.223         |
+|    learning_rate        | 0.000249      |
+|    loss                 | 106           |
+|    n_updates            | 36            |
+|    policy_gradient_loss | -0.00164      |
+|    value_loss           | 250           |
+-------------------------------------------
+------------------------------------------
+| rollout/                |              |
+|    ep_len_mean          | 394          |
+|    ep_rew_mean          | 198          |
+| time/                   |              |
+|    fps                  | 213          |
+|    iterations           | 20           |
+|    time_elapsed         | 95           |
+|    total_timesteps      | 20480        |
+| train/                  |              |
+|    approx_kl            | 0.0007306904 |
+|    clip_fraction        | 0.0107       |
+|    clip_range           | 0.0995       |
+|    ent_coef             | 0.0199       |
+|    entropy_loss         | -2.18        |
+|    explained_variance   | 0.516        |
+|    learning_rate        | 0.000249     |
+|    loss                 | 64.8         |
+|    n_updates            | 76           |
+|    policy_gradient_loss | -0.000949    |
+|    value_loss           | 150          |
+------------------------------------------
+------------------------------------------
+| rollout/                |              |
+|    ep_len_mean          | 398          |
+|    ep_rew_mean          | 209          |
+| time/                   |              |
+|    fps                  | 211          |
+|    iterations           | 30           |
+|    time_elapsed         | 145          |
+|    total_timesteps      | 30720        |
+| train/                  |              |
+|    approx_kl            | 0.0002565931 |
+|    clip_fraction        | 0.00171      |
+|    clip_range           | 0.0993       |
+|    ent_coef             | 0.0199       |
+|    entropy_loss         | -2.17        |
+|    explained_variance   | 0.315        |
+|    learning_rate        | 0.000248     |
+|    loss                 | 230          |
+|    n_updates            | 116          |
+|    policy_gradient_loss | -0.000873    |
+|    value_loss           | 375          |
+------------------------------------------
+------------------------------------------
+| rollout/                |              |
+|    ep_len_mean          | 395          |
+|    ep_rew_mean          | 203          |
+| time/                   |              |
+|    fps                  | 209          |
+|    iterations           | 40           |
+|    time_elapsed         | 195          |
+|    total_timesteps      | 40960        |
+| train/                  |              |
+|    approx_kl            | 0.0006791965 |
+|    clip_fraction        | 0.00293      |
+|    clip_range           | 0.099        |
+|    ent_coef             | 0.0198       |
+|    entropy_loss         | -2.15        |
+|    explained_variance   | 0.478        |
+|    learning_rate        | 0.000248     |
+|    loss                 | 95.2         |
+|    n_updates            | 156          |
+|    policy_gradient_loss | -0.00224     |
+|    value_loss           | 210          |
+------------------------------------------
+-------------------------------------------
+| rollout/                |               |
+|    ep_len_mean          | 393           |
+|    ep_rew_mean          | 210           |
+| time/                   |               |
+|    fps                  | 208           |
+|    iterations           | 50            |
+|    time_elapsed         | 245           |
+|    total_timesteps      | 51200         |
+| train/                  |               |
+|    approx_kl            | 0.00034802064 |
+|    clip_fraction        | 0.00244       |
+|    clip_range           | 0.0987        |
+|    ent_coef             | 0.0198        |
+|    entropy_loss         | -2.17         |
+|    explained_variance   | 0.426         |
+|    learning_rate        | 0.000247      |
+|    loss                 | 85.8          |
+|    n_updates            | 196           |
+|    policy_gradient_loss | 0.00228       |
+|    value_loss           | 206           |
+-------------------------------------------

@@ -4,7 +4,7 @@
 # typically enough to surface a clear learning signal; bump to 10M+ for longer
 # experiments or harder games.
 
-run_name: ppo_airstriker_v7   # v6 (entropy schedule on top of v5's spray-fire setup) reached mean return 222 and peak 275 by 1.6M — better than v5 (193/244) but still capped because the underlying AutoFire period=4 saturates Airstriker's bullet sprite array within 0.6s of each life. A rate-sweep at inference time (scripts/eval_period_sweep.py) showed slower fire avoids saturation: period=8 gave +77% return on v6/best.zip with no retraining (275→486, 11→17 kills). v7 picks the more ambitious bet: period=24 (2.5 Hz) — fire visibly active throughout each life, forcing the policy to learn deliberate position-then-shoot rather than spray. Keeps v6's ent_coef schedule (0.02→0.001) since v6 demonstrated it helps commitment.
+run_name: ppo_airstriker_v8   # v7 (period=24, ent_coef annealed) confirmed saturation fix: peak 1248 vs v6's 275 (+4.5×), episode length 1820 vs ~500 (+3.3×). Late collapse at 2M (approx_kl→0) suggests ent_coef annealing over 2M was too fast. v8: period=18 (3.33 Hz, slightly more aggressive than v7), survival reward tripled (survival_bonus 0.01→0.03) + life-loss penalty doubled (-10→-20) to encourage deeper play, 4M total_timesteps so ent_coef anneals half as fast (0.02→0.001 over 4M vs 2M in v7). Eval seed-variation also added this run (per-episode seeds in EvalAndVideoCallback).
 seed: 42
 
 env_config: configs/env.yaml
@@ -13,7 +13,7 @@ n_envs: 8                     # SubprocVecEnv workers; reduce on low-core machin
 # Algorithm
 algorithm: ppo
 policy: cnn                   # registered in models/policies.py
-total_timesteps: 2_000_000
+total_timesteps: 4_000_000
 
 ppo:
   learning_rate: 2.5e-4       # linear schedule applied in trainer

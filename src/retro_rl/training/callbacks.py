@@ -145,6 +145,7 @@ class EvalAndVideoCallback(BaseCallback):
         manager: CheckpointManager,
         video_dir: Path | None = None,
         video_fps: int = 30,
+        eval_seed: int | None = None,
         verbose: int = 0,
     ) -> None:
         super().__init__(verbose=verbose)
@@ -158,6 +159,11 @@ class EvalAndVideoCallback(BaseCallback):
         self.manager = manager
         self.video_dir = Path(video_dir) if video_dir is not None else None
         self.video_fps = video_fps
+        # Each episode resets with seed = eval_seed + ep_i. Gives different
+        # env RNG states per episode so std_return is non-zero for stochastic
+        # envs. For Airstriker (deterministic save-state), this only helps if
+        # sticky_action_prob > 0 or similar env-level noise is added.
+        self.eval_seed = eval_seed
 
         self._eval_env: gym.Env | None = None
         self._next_eval = every_steps
@@ -203,7 +209,8 @@ class EvalAndVideoCallback(BaseCallback):
         frames: list[np.ndarray] = []
 
         for ep_i in range(self.n_episodes):
-            obs, _ = self._eval_env.reset()
+            seed = (self.eval_seed + ep_i) if self.eval_seed is not None else None
+            obs, _ = self._eval_env.reset(seed=seed)
             ep_return = 0.0
             ep_length = 0
             done = False

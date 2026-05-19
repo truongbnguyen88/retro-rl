@@ -84,7 +84,8 @@ def train(cfg: TrainConfig, resume_from: Path | None = None) -> Path:
         config_snapshot_path=config_snapshot_path,
     )
 
-    eval_env_factory = _build_eval_env_factory(cfg)
+    eval_seed = cfg.seed + 10_000
+    eval_env_factory = _build_eval_env_factory(cfg, eval_seed)
     callback_list: list = [
         PeriodicCheckpointCallback(
             manager=manager,
@@ -96,6 +97,7 @@ def train(cfg: TrainConfig, resume_from: Path | None = None) -> Path:
             every_steps=cfg.eval.every_steps,
             manager=manager,
             video_dir=video_dir,
+            eval_seed=eval_seed,
         ),
     ]
     if cfg.ppo.ent_coef_final is not None:
@@ -145,14 +147,8 @@ def _build_vec_env(cfg: TrainConfig):
     return VecMonitor(SubprocVecEnv(env_fns, start_method="spawn"))
 
 
-def _build_eval_env_factory(cfg: TrainConfig):
-    """Closure: (record_video: bool) -> single gym.Env for deterministic eval.
-
-    Eval uses a seed offset from train (+ a fixed delta) to avoid leakage of
-    train-time seed reuse into eval rollouts.
-    """
-    eval_seed = cfg.seed + 10_000
-
+def _build_eval_env_factory(cfg: TrainConfig, eval_seed: int):
+    """Closure: (record_video: bool) -> single gym.Env for deterministic eval."""
     def _factory(record_video: bool) -> gym.Env:
         return make_env(
             cfg.env,
