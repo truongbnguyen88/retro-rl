@@ -152,7 +152,12 @@ if st.session_state.ep is None:
 ep_id = st.session_state.ep["episode_id"]
 st.caption(f"episode `{ep_id}` on `{st.session_state.ep['checkpoint_id']}`")
 
-frame_slot = st.empty()
+# Constrain the viewport to ~40% of page width so the native 320×224 frame
+# upscales to a comfortable ~500–700 px rather than filling the wide layout.
+# `use_container_width=True` inside the middle column then scales with window.
+_left, _mid, _right = st.columns([1, 2, 2])
+with _mid:
+    frame_slot = st.empty()
 state_slot = st.empty()
 
 
