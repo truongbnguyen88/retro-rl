@@ -238,6 +238,14 @@ class TrainConfig(BaseModel):
     features_extractor: str = "nature_cnn"
     features_dim: int = 512
 
+    # Wrap the train VecEnv in SB3 VecNormalize with norm_reward=True (returns
+    # rescaled to ~unit variance; observations are NOT normalized — images are
+    # scaled in the CNN forward). Shrinks the value-target scale so the value
+    # head fits faster (higher explained_variance, lower value_loss). Eval is
+    # unaffected: it runs on a bare env and reports raw returns. Default False
+    # reproduces v8/v9 behaviour and keeps older snapshots valid.
+    normalize_reward: bool = False
+
     ppo: PPOHyperparams = Field(default_factory=PPOHyperparams)
 
     log_dir: Path = Path("outputs/tensorboard")

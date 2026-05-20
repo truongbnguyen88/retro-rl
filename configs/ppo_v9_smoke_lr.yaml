@@ -1,0 +1,38 @@
+# v9 smoke, attempt 2 — lower learning rate.
+#
+# Attempt 1 (configs/ppo_v9_smoke.yaml, LR 2.5e-4 inherited from v8) caught a
+# value-function-fitting failure: train/explained_variance pinned at 0.000 for
+# the full 100K observed, train/value_loss diverging (782 → 1525), while the
+# policy itself kept improving (eval/mean_return 34 → 126). Signature of a value
+# head that can't converge under the inherited LR — the deeper IMPALA net + the
+# larger return targets from action_repeat=8 (value_loss ~5× v8's ~200) overwhelm
+# the v8-tuned 2.5e-4. This is the "LR-incompat" the smoke exists to catch.
+#
+# Change vs attempt 1: learning_rate 2.5e-4 → 1.0e-4 (2.5× lower). Everything
+# else identical, so this is a clean single-variable test. Extended to 500K (vs
+# 200K) to see explained_variance climb off zero with margin rather than guess
+# from the first couple of evals.
+#
+# GO/NO-GO at 500K: explained_variance should be clearly positive and climbing
+# (v8 reached ~0.4 by 50K, ~0.9 by 1.5M). value_loss should trend DOWN, not up.
+# If EV is still ~0 at 500K, LR alone isn't the fix — next lever is reward
+# normalization (VecNormalize) to shrink the return-target scale.
+
+extends: configs/ppo_v9.yaml
+
+run_name: ppo_airstriker_v9_smoke_lr1e4
+total_timesteps: 500_000
+
+# ppo_v9.yaml now bakes in normalize_reward: true (the smoke-3 outcome). This
+# config predates that and was the LR-only test, so pin it back to false to
+# keep it a faithful record of what attempt 2 actually ran.
+normalize_reward: false
+
+ppo:
+  learning_rate: 1.0e-4
+
+eval:
+  every_steps: 50_000
+
+checkpoint:
+  every_steps: 50_000

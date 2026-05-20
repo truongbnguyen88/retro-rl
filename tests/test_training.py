@@ -21,13 +21,21 @@ from retro_rl.training.checkpoint import CheckpointManager
 
 
 class _FakeModel:
-    """Minimal stand-in for an SB3 PPO: only ``save(path)`` is exercised."""
+    """Minimal stand-in for an SB3 PPO: ``save(path)`` plus the
+    ``get_vec_normalize_env`` accessor the manager calls to decide whether to
+    write a VecNormalize stats sidecar. ``vecnormalize`` lets a test inject a
+    stub normalization env; default None mirrors a run without it.
+    """
 
-    def __init__(self, payload: str = "weights-v1") -> None:
+    def __init__(self, payload: str = "weights-v1", vecnormalize: object | None = None) -> None:
         self.payload = payload
+        self._vecnormalize = vecnormalize
 
     def save(self, path: str | Path) -> None:
         Path(path).write_text(self.payload)
+
+    def get_vec_normalize_env(self) -> object | None:
+        return self._vecnormalize
 
 
 # ---------------------------------------------------------------------------
@@ -80,6 +88,47 @@ def test_save_leaves_no_tmp_files(tmp_path: Path):
     mgr.save(_FakeModel(), step=10, eval_return=1.0)
     leftover = list((tmp_path / "r").glob("*.tmp"))
     assert leftover == []
+
+
+# ---------------------------------------------------------------------------
+# VecNormalize stats sidecar (resume-safe normalization)
+# ---------------------------------------------------------------------------
+
+
+class _FakeVecNormalize:
+    """Stub with the one method the manager calls: ``save(path)``."""
+
+    def __init__(self, payload: str = "vecnorm-stats") -> None:
+        self.payload = payload
+
+    def save(self, path: str | Path) -> None:
+        Path(path).write_text(self.payload)
+
+
+def test_no_pkl_written_without_vecnormalize(tmp_path: Path):
+    mgr = CheckpointManager(root=tmp_path, run_name="r")
+    mgr.save(_FakeModel(), step=10, eval_return=None)
+    assert list((tmp_path / "r").glob("*.pkl")) == []
+
+
+def test_pkl_sidecar_written_for_step_and_best(tmp_path: Path):
+    mgr = CheckpointManager(root=tmp_path, run_name="r")
+    model = _FakeModel("w", vecnormalize=_FakeVecNormalize("stats-1"))
+    mgr.save(model, step=10, eval_return=5.0)  # also becomes best
+
+    step_pkl = tmp_path / "r" / "step-10.pkl"
+    best_pkl = tmp_path / "r" / "best.pkl"
+    assert step_pkl.read_text() == "stats-1"
+    assert best_pkl.read_text() == "stats-1"
+
+
+def test_pkl_sidecar_pruned_with_zip(tmp_path: Path):
+    mgr = CheckpointManager(root=tmp_path, run_name="r", keep_last_k=2)
+    for s in (10, 20, 30, 40):
+        mgr.save(_FakeModel(vecnormalize=_FakeVecNormalize()), step=s, eval_return=None)
+
+    pkls = sorted(int(p.stem.split("-")[1]) for p in (tmp_path / "r").glob("step-*.pkl"))
+    assert pkls == [30, 40]
 
 
 # ---------------------------------------------------------------------------

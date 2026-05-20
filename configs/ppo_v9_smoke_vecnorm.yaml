@@ -1,0 +1,31 @@
+# v9 smoke, attempt 3 — reward normalization (VecNormalize).
+#
+# Attempt 2 (configs/ppo_v9_smoke_lr.yaml, LR 1e-4) fixed the EV-pinned-at-zero
+# failure: explained_variance climbed 0.005 → ~0.25 by 100K. But it then
+# plateaued at 0.25–0.42 through 500K (vs v8's ~0.7 at comparable steps) and
+# value_loss stayed high (~500–1500 vs v8's ~200). Diagnosis: action_repeat=8
+# produces chunkier, higher-variance per-step rewards → large return targets →
+# the IMPALA value head fits to a low ceiling, and the noisy value baseline
+# feeds noisy advantages back into the policy gradient (slower policy learning).
+#
+# Change vs attempt 2: normalize_reward true (SB3 VecNormalize, norm_reward
+# only — observations stay raw). Returns are rescaled to ~unit variance, so the
+# value-target regression is well-conditioned. Everything else identical to
+# attempt 2 (LR 1e-4, 500K, IMPALA, action_repeat=8, period=12, eval/ckpt 50K)
+# so this is a clean single-variable test.
+#
+# GO/NO-GO at 500K vs attempt 2:
+#   - explained_variance should climb PAST 0.42 and keep rising (target: > 0.5,
+#     ideally approaching v8's ~0.7 trajectory).
+#   - value_loss (on normalized targets) should be O(1–10), not hundreds.
+#   - eval/mean_return is reported on RAW rewards (bare eval env), so it stays
+#     directly comparable to attempt 2's numbers — watch for a higher / less
+#     noisy curve.
+# If EV still ceilings at ~0.4 with normalization, the bottleneck is the
+# action_repeat=8 decision granularity itself, not value-target scale — next
+# lever would be revisiting AR=8 → 6, not more optimizer/scale tuning.
+
+extends: configs/ppo_v9_smoke_lr.yaml
+
+run_name: ppo_airstriker_v9_smoke_vecnorm
+normalize_reward: true

@@ -37,6 +37,24 @@ def _atomic_save_zip(model: PPO, path: Path) -> None:
     os.replace(tmp, path)
 
 
+def _atomic_save_vecnormalize(model: PPO, path: Path) -> bool:
+    """Save VecNormalize running stats next to a checkpoint, atomically.
+
+    Returns True if stats were written (i.e. the model's env is a VecNormalize),
+    False otherwise. The ``.pkl`` is a sidecar to ``step-<N>.zip`` / ``best.zip``
+    so resume can restore the exact reward-normalization state for that
+    checkpoint. ``get_vec_normalize_env`` only walks wrapper references (no
+    subprocess IPC), so this is safe even after the train VecEnv is closed.
+    """
+    vn = model.get_vec_normalize_env()
+    if vn is None:
+        return False
+    tmp = path.with_suffix(path.suffix + ".tmp")
+    vn.save(str(tmp))
+    os.replace(tmp, path)
+    return True
+
+
 def _atomic_write_json(path: Path, payload: dict[str, Any]) -> None:
     tmp = path.with_suffix(path.suffix + ".tmp")
     tmp.write_text(json.dumps(payload, indent=2, sort_keys=True))
@@ -98,6 +116,7 @@ class CheckpointManager:
         """
         zip_path = self.dir / f"step-{step}.zip"
         _atomic_save_zip(model, zip_path)
+        _atomic_save_vecnormalize(model, zip_path.with_suffix(".pkl"))
         _atomic_write_json(
             zip_path.with_suffix(".json"),
             self._sidecar_payload(step, eval_return, kind="step"),
@@ -143,6 +162,7 @@ class CheckpointManager:
     def _write_best(self, model: PPO, step: int, eval_return: float) -> None:
         best_zip = self.dir / "best.zip"
         _atomic_save_zip(model, best_zip)
+        _atomic_save_vecnormalize(model, best_zip.with_suffix(".pkl"))
         _atomic_write_json(
             self.dir / "best.json",
             self._sidecar_payload(step, eval_return, kind="best"),
@@ -181,6 +201,7 @@ class CheckpointManager:
         for old in ckpts[:excess]:
             old.unlink(missing_ok=True)
             old.with_suffix(".json").unlink(missing_ok=True)
+            old.with_suffix(".pkl").unlink(missing_ok=True)
 
 
 __all__ = ["CheckpointManager"]

@@ -30,7 +30,7 @@ from pathlib import Path
 import gymnasium as gym
 from stable_baselines3 import PPO
 from stable_baselines3.common.callbacks import CallbackList
-from stable_baselines3.common.vec_env import SubprocVecEnv, VecMonitor
+from stable_baselines3.common.vec_env import SubprocVecEnv, VecMonitor, VecNormalize
 
 from retro_rl.agents.ppo import build_ppo
 from retro_rl.env import make_env, make_env_fn
@@ -69,7 +69,21 @@ def train(cfg: TrainConfig, resume_from: Path | None = None) -> Path:
     config_snapshot_path = run_dir / "config_snapshot.json"
     config_snapshot_path.write_text(json.dumps(cfg.model_dump(mode="json"), indent=2, default=str))
 
-    vec_env = _build_vec_env(cfg)
+    vecnorm_stats: Path | None = None
+    if resume_from is not None and cfg.normalize_reward:
+        candidate = resume_from.with_suffix(".pkl")
+        if candidate.exists():
+            vecnorm_stats = candidate
+            log.info("restoring VecNormalize stats from %s", candidate)
+        else:
+            log.warning(
+                "normalize_reward set but no VecNormalize stats at %s; "
+                "resuming with fresh running averages (reward scale will re-estimate)",
+                candidate,
+            )
+    vec_env = _build_vec_env(cfg, vecnormalize_stats=vecnorm_stats)
+    if cfg.normalize_reward:
+        log.info("VecNormalize active: norm_reward=True norm_obs=False gamma=%.4g", cfg.ppo.gamma)
 
     if resume_from is None:
         log.info(
@@ -154,10 +168,34 @@ def train(cfg: TrainConfig, resume_from: Path | None = None) -> Path:
 # ---------------------------------------------------------------------------
 
 
-def _build_vec_env(cfg: TrainConfig):
-    """Build train VecEnv. Always SubprocVecEnv (see module docstring)."""
+def _build_vec_env(cfg: TrainConfig, vecnormalize_stats: Path | None = None):
+    """Build train VecEnv. Always SubprocVecEnv (see module docstring).
+
+    When ``cfg.normalize_reward`` is set, the stack is
+    ``VecNormalize(VecMonitor(SubprocVecEnv(...)))``: VecMonitor sits *inside*
+    VecNormalize so ``rollout/ep_rew_mean`` is logged in raw reward units
+    (comparable across runs), while PPO sees the normalized reward. Only the
+    reward is normalized — ``norm_obs=False`` because images are scaled in the
+    CNN forward and the bare eval env would otherwise see a different obs scale.
+    ``gamma`` must match PPO's gamma: the return-variance estimate is
+    gamma-dependent.
+
+    ``vecnormalize_stats`` (resume only): path to a saved ``.pkl`` whose running
+    averages are loaded so the reward scale continues seamlessly instead of
+    re-estimating from scratch. The saved object already carries ``gamma`` /
+    ``norm_obs`` / ``norm_reward``; ``training`` is forced True so resumed runs
+    keep updating the statistics.
+    """
     env_fns = [make_env_fn(cfg.env, seed=cfg.seed, rank=i) for i in range(cfg.n_envs)]
-    return VecMonitor(SubprocVecEnv(env_fns, start_method="spawn"))
+    venv = VecMonitor(SubprocVecEnv(env_fns, start_method="spawn"))
+    if cfg.normalize_reward:
+        if vecnormalize_stats is not None:
+            venv = VecNormalize.load(str(vecnormalize_stats), venv)
+            venv.training = True
+            venv.norm_reward = True
+        else:
+            venv = VecNormalize(venv, norm_obs=False, norm_reward=True, gamma=cfg.ppo.gamma)
+    return venv
 
 
 def _build_eval_env_factory(cfg: TrainConfig, eval_seed: int):
