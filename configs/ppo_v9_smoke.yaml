@@ -1,0 +1,27 @@
+# v9 smoke test — 200K steps to validate the IMPALA ResNet + action_repeat=8 +
+# period=12 stack BEFORE committing the full ~65 h v9 run. Inherits ppo_v9.yaml
+# (same env, same architecture, same hyperparameters) and only shortens the run
+# and tightens eval/checkpoint cadence so the early curve is observable.
+#
+# What to watch at the 50K / 100K / 150K / 200K checkpoints:
+#   - train/value_loss          — should be finite and trend down, not explode
+#   - train/policy_gradient_loss — finite, no NaN
+#   - train/explained_variance  — climbing off ~0 toward positive
+#   - eval/mean_return          — any upward signal; absolute value not the point
+# If value_loss diverges or losses go NaN, the IMPALA net needs a lower LR or
+# grad-norm clip before the full run. See TASKS.md "Next up" #2.
+#
+# NOTE: ent_coef annealing is keyed to total_timesteps, so over 200K it barely
+# moves (0.02 → ~0.019). That's fine — the smoke is about numerical stability of
+# the new architecture, not the entropy schedule.
+
+extends: configs/ppo_v9.yaml
+
+run_name: ppo_airstriker_v9_smoke
+total_timesteps: 200_000
+
+eval:
+  every_steps: 50_000
+
+checkpoint:
+  every_steps: 50_000

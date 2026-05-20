@@ -44,7 +44,8 @@ def build_ppo(
     vec_env: VecEnv,
     cfg: TrainConfig,
     tb_log_path: Path | None = None,
-    features_dim: int = 512,
+    features_dim: int | None = None,
+    features_extractor: str | None = None,
 ) -> PPO:
     """Construct an SB3 PPO model from :class:`TrainConfig`.
 
@@ -54,12 +55,18 @@ def build_ppo(
         Vectorized env (e.g. ``SubprocVecEnv(make_env_fn(...))``). PPO needs a
         ``VecEnv``; passing a single env trips a noisy SB3 warning + wrap.
     cfg
-        Top-level training config; only ``cfg.ppo``, ``cfg.seed``,
-        ``cfg.policy`` are read here.
+        Top-level training config; ``cfg.ppo``, ``cfg.seed``, ``cfg.policy``,
+        and (unless overridden below) ``cfg.features_extractor`` /
+        ``cfg.features_dim`` are read here.
     tb_log_path
         If provided, SB3 writes TensorBoard event files under this directory.
     features_dim
-        CNN feature dimension (forwarded to :class:`RetroCNN`).
+        Override for the extractor's output dim. ``None`` ⇒ use
+        ``cfg.features_dim``.
+    features_extractor
+        Override for the extractor name. ``None`` ⇒ use
+        ``cfg.features_extractor``. Validated against the registry in
+        :mod:`retro_rl.models.policies`.
 
     Returns
     -------
@@ -71,6 +78,11 @@ def build_ppo(
             f"build_ppo: only 'cnn' policy is wired today; got {cfg.policy!r}. "
             f"Add a registry when a second policy lands."
         )
+
+    resolved_dim = features_dim if features_dim is not None else cfg.features_dim
+    resolved_extractor = (
+        features_extractor if features_extractor is not None else cfg.features_extractor
+    )
 
     ppo_cfg = cfg.ppo
     return PPO(
@@ -87,7 +99,10 @@ def build_ppo(
         vf_coef=ppo_cfg.vf_coef,
         max_grad_norm=ppo_cfg.max_grad_norm,
         normalize_advantage=ppo_cfg.normalize_advantage,
-        policy_kwargs=build_policy_kwargs(features_dim=features_dim),
+        policy_kwargs=build_policy_kwargs(
+            features_dim=resolved_dim,
+            features_extractor=resolved_extractor,
+        ),
         tensorboard_log=str(tb_log_path) if tb_log_path is not None else None,
         seed=cfg.seed,
         verbose=1,

@@ -28,8 +28,9 @@ python scripts/train.py --config configs/ppo.yaml
 # 4. Evaluate a checkpoint
 python scripts/evaluate.py --checkpoint outputs/checkpoints/<run>/best.zip --episodes 20
 
-# 5. Backend (Streamlit frontend still in flight — Milestone 6)
+# 5. Backend + frontend
 python scripts/serve.py            # FastAPI on :8000
+streamlit run frontend/app.py      # Streamlit dashboard on :8501
 ```
 
 ---
@@ -48,11 +49,11 @@ See [CLAUDE.md](CLAUDE.md) for the full module map and dependency rules. The sho
 
 ## Status
 
-See [TASKS.md](TASKS.md) for milestone tracking. **Milestones 1–5 complete** (env layer, models, agents, trainer, evaluator, FastAPI backend). Milestone 6 (Streamlit frontend) is next.
+See [TASKS.md](TASKS.md) for milestone tracking. **Milestones 1–7 complete** (env layer, models, agents, trainer, evaluator, FastAPI backend, Streamlit frontend, docs + CI + pre-commit). Remaining work is experimental training iteration (v8 running, v9 prepared).
 
 ## Training notes (Airstriker)
 
-We iterated the action space, reward shaping, optimiser regularisation, and the fire wrapper across seven runs before reaching a stable setup. Each iteration's diagnosis is preserved in the TASKS.md decisions log; the short version:
+We iterated the action space, reward shaping, optimiser regularisation, and the fire wrapper across many runs before reaching a stable setup. Each iteration's diagnosis is preserved in the TASKS.md decisions log; the short version:
 
 | Version | Problem | Fix |
 |---------|---------|-----|
@@ -62,7 +63,9 @@ We iterated the action space, reward shaping, optimiser regularisation, and the 
 | **v4** | `score_delta` amplification was a no-op against the `+10` clip ceiling | Raised clip ceiling |
 | **v5** | **Rising-edge fire bug**: Airstriker fires only on the *rising edge* of B. v3/v4's "always-fire" combos held B continuously, firing exactly one bullet per life | [`AutoFireWrapper`](src/retro_rl/env/wrappers.py) taps B at the emulator-frame level (1-on / 3-off). Combos encode movement only. Verified with [`scripts/diagnose_fire_button.py`](scripts/diagnose_fire_button.py). Mean return 193, peak 244 over 2M |
 | **v6** | Constant `ent_coef=0.02` against Discrete(9) max entropy `ln(9) ≈ 2.197` kept the policy near-uniform once advantages shrank; eval return peaked at 244 (1.4M) then *regressed* to 214 by 2M with `approx_kl → 0` | Linear `ent_coef` schedule 0.02 → 0.001 over total_timesteps via new [`EntCoefLinearSchedule`](src/retro_rl/training/callbacks.py). Mean rose to 222, peak to 275 over 1.6M, but still ceilinged because v5's tap-fire was actually *too fast* |
-| **v7** *(current)* | **Bullet-array saturation**: AutoFire at period=4 (15 Hz) jammed Airstriker's player-bullet sprite slots within ~0.6s of each life. Game silently dropped B for the remaining 2-5s, so v5/v6 training data only ever covered the first ~5s of Level 1 | Drop AutoFire to `period=24` (2.5 Hz, ~25 bullets per life). Slot array never saturates → fire is visibly active end-to-end → policy can train on deeper level coverage. Carries v6's entropy schedule |
+| **v7** | **Bullet-array saturation**: AutoFire at period=4 (15 Hz) jammed Airstriker's player-bullet sprite slots within ~0.6s of each life. Game silently dropped B for the remaining 2-5s, so v5/v6 training data only ever covered the first ~5s of Level 1 | Drop AutoFire to `period=24` (2.5 Hz, ~25 bullets per life). Slot array never saturates → fire is visibly active end-to-end → policy can train on deeper level coverage. Carries v6's entropy schedule. Peak eval return **1248** @ 1.5M, episode length 1820 (+3.3×) |
+| **v8** *(running)* | v7 confirmed the saturation fix but late-run `approx_kl → 0` at 2M suggested the entropy schedule annealed too fast over 2M; agent still under-prioritised survival | `period=18` (3.33 Hz), survival reward tripled (`survival_bonus` 0.01→0.03) + life-loss penalty doubled (−10→−20), `total_timesteps=4M` so `ent_coef` anneals at half the rate. Best eval return **4271** @ 3.3M (+3.4× over v7); rollout reward climbing steadily to ~2300 |
+| **v9** *(prepared)* | v8 replay shows 2–3-frame action "shaking" (LEFT↔RIGHT logit oscillation) and a possible representational ceiling from the Nature-CNN | Bundles three changes: `action_repeat` 4→8 (7.5 Hz decisions), Nature-CNN → **IMPALA ResNet** ([`models/impala.py`](src/retro_rl/models/impala.py)), `auto_fire.period` 18→12 (5 Hz). Configs: [`ppo_v9.yaml`](configs/ppo_v9.yaml) + [`env_v9.yaml`](configs/env_v9.yaml); run [`ppo_v9_smoke.yaml`](configs/ppo_v9_smoke.yaml) (200K) first to validate numerical stability |
 
 The takeaways for future retro-shooter integrations:
 

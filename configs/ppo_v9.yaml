@@ -1,0 +1,24 @@
+# v9 training config — capacity + decision-rate ablation.
+# Inherits configs/ppo.yaml (the v8 config) and overrides only what changes for
+# v9. v8's config is left untouched so its run stays reproducible.
+#
+# v9 bundles three changes (see TASKS.md "Next up" #2):
+#   1. action_repeat 4 → 8        (in configs/env_v9.yaml — decision rate 7.5 Hz)
+#   2. RetroCNN → IMPALA ResNet   (features_extractor below)
+#   3. auto_fire.period 18 → 12   (in configs/env_v9.yaml — 5 Hz fire rate)
+#
+# total_timesteps stays 4M (inherited). Wall-clock roughly doubles to ~65 h on
+# Apple Silicon because action_repeat=8 doubles emulator frames per policy step.
+# Run the 200K smoke (configs/ppo_v9_smoke.yaml) FIRST to catch LR-incompat /
+# NaN before committing the full run.
+
+extends: configs/ppo.yaml
+
+run_name: ppo_airstriker_v9
+env_config: configs/env_v9.yaml
+
+# IMPALA ResNet (3 conv stacks, channels 16→32→32, 2 residual blocks each).
+# features_dim 256 is the canonical IMPALA FC width (vs RetroCNN's 512). The
+# residual depth is where the added capacity lives; a wider FC head buys little.
+features_extractor: impala
+features_dim: 256

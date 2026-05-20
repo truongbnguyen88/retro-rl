@@ -13,7 +13,8 @@ import torch
 from gymnasium import spaces
 
 from retro_rl.models.cnn import RetroCNN
-from retro_rl.models.policies import policy_kwargs
+from retro_rl.models.impala import ImpalaCNN
+from retro_rl.models.policies import FEATURE_EXTRACTORS, policy_kwargs
 
 
 # After VecTransposeImage SB3 hands the extractor a channels-first space.
@@ -64,3 +65,59 @@ def test_policy_kwargs_wires_retro_cnn():
     assert kw["features_extractor_class"] is RetroCNN
     assert kw["features_extractor_kwargs"] == {"features_dim": 384}
     assert kw["normalize_images"] is False
+
+
+# ---- IMPALA ResNet --------------------------------------------------------
+
+
+def test_impala_forward_default_features_dim():
+    cnn = ImpalaCNN(_cnn_obs_space())
+    out = cnn(torch.zeros((2, 4, 84, 84), dtype=torch.uint8))
+    assert out.shape == (2, 256)
+    assert out.dtype == torch.float32
+
+
+def test_impala_custom_features_dim():
+    cnn = ImpalaCNN(_cnn_obs_space(), features_dim=512)
+    out = cnn(torch.zeros((1, 4, 84, 84), dtype=torch.uint8))
+    assert out.shape == (1, 512)
+
+
+def test_impala_rejects_non_image_space():
+    flat = spaces.Box(low=0, high=255, shape=(4 * 84 * 84,), dtype=np.uint8)
+    with pytest.raises(ValueError):
+        ImpalaCNN(flat)
+
+
+def test_impala_handles_frame_stack_one():
+    cnn = ImpalaCNN(_cnn_obs_space(c=1))
+    out = cnn(torch.zeros((1, 1, 84, 84), dtype=torch.uint8))
+    assert out.shape == (1, 256)
+
+
+def test_impala_normalizes_uint8_to_float():
+    cnn = ImpalaCNN(_cnn_obs_space())
+    x_zeros = torch.zeros((1, 4, 84, 84), dtype=torch.uint8)
+    x_max = torch.full((1, 4, 84, 84), 255, dtype=torch.uint8)
+    assert torch.isfinite(cnn(x_zeros)).all()
+    assert torch.isfinite(cnn(x_max)).all()
+
+
+# ---- extractor selection --------------------------------------------------
+
+
+def test_policy_kwargs_selects_impala():
+    kw = policy_kwargs(features_dim=256, features_extractor="impala")
+    assert kw["features_extractor_class"] is ImpalaCNN
+    assert kw["features_extractor_kwargs"] == {"features_dim": 256}
+    assert kw["normalize_images"] is False
+
+
+def test_policy_kwargs_rejects_unknown_extractor():
+    with pytest.raises(ValueError):
+        policy_kwargs(features_extractor="transformer")
+
+
+def test_feature_extractor_registry_contents():
+    assert FEATURE_EXTRACTORS["nature_cnn"] is RetroCNN
+    assert FEATURE_EXTRACTORS["impala"] is ImpalaCNN

@@ -1,0 +1,25 @@
+# v9 environment config — inherits the Airstriker base (configs/env.yaml) and
+# overrides only the two env-layer knobs that change for v9. Keeping this as a
+# thin `extends:` overlay leaves v8's config (env.yaml) byte-for-byte intact for
+# reproducibility; the deep-merge loader fills everything else from the base.
+#
+# v9 changes vs v8 (env layer):
+#   - action_repeat 4 → 8: halves the policy decision rate to 7.5 Hz. Targets
+#     the visible 2–3-frame action "shaking" (LEFT↔RIGHT logits flipping every
+#     other frame) seen in v8 replay. Reward is summed across the 8 skipped
+#     frames, so per-decision reward scale roughly doubles — schedules and
+#     clip bounds are unaffected (clip is per-shaped-step, applied before the
+#     skip-sum in the wrapper stack).
+#   - auto_fire.period 18 → 12: 5 Hz fire rate (1 frame on, 11 off). Sits
+#     between verified-good period=8 (7.5 Hz, +77% return in the v6 inference
+#     sweep) and v7's period=24 (2.5 Hz). Capitalizes on v8's longer episodes.
+#     NOTE: period is in EMULATOR frames, independent of action_repeat — the
+#     AutoFireWrapper wraps the raw env and sees every frame inside the skip
+#     loop, so the 5 Hz cadence holds regardless of action_repeat=8.
+
+extends: configs/env.yaml
+
+action_repeat: 8
+
+auto_fire:
+  period: 12

@@ -72,6 +72,11 @@ def train(cfg: TrainConfig, resume_from: Path | None = None) -> Path:
     vec_env = _build_vec_env(cfg)
 
     if resume_from is None:
+        log.info(
+            "features_extractor=%s features_dim=%d",
+            cfg.features_extractor,
+            cfg.features_dim,
+        )
         model = build_ppo(vec_env, cfg, tb_log_path=cfg.log_dir)
     else:
         log.info("resuming from %s", resume_from)

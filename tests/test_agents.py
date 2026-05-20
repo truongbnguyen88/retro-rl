@@ -165,6 +165,20 @@ def test_build_ppo_uses_retro_cnn(tmp_path: Path):
     vec_env.close()
 
 
+def test_build_ppo_uses_impala_from_config(tmp_path: Path):
+    """v9 path: cfg.features_extractor='impala' wires ImpalaCNN end-to-end."""
+    from retro_rl.models.impala import ImpalaCNN
+
+    vec_env = _make_vec_env()
+    cfg = _train_cfg(tmp_path)
+    cfg.features_extractor = "impala"
+    cfg.features_dim = 256
+    model = build_ppo(vec_env, cfg, tb_log_path=cfg.log_dir)
+    assert isinstance(model.policy.features_extractor, ImpalaCNN)
+    assert model.policy.features_extractor.features_dim == 256
+    vec_env.close()
+
+
 def test_build_ppo_rejects_unknown_policy(tmp_path: Path):
     vec_env = _make_vec_env()
     cfg = _train_cfg(tmp_path)

@@ -230,6 +230,14 @@ class TrainConfig(BaseModel):
     policy: str = "cnn"
     total_timesteps: int = 10_000_000
 
+    # Feature-extractor selection. Names are validated against the registry in
+    # retro_rl.models.policies (imported lazily in the validator to avoid a
+    # config→models import cycle and to keep torch off the config import path).
+    # Defaults reproduce v8 (Nature-CNN, 512-dim) so older snapshots that omit
+    # these fields validate unchanged.
+    features_extractor: str = "nature_cnn"
+    features_dim: int = 512
+
     ppo: PPOHyperparams = Field(default_factory=PPOHyperparams)
 
     log_dir: Path = Path("outputs/tensorboard")
@@ -239,6 +247,27 @@ class TrainConfig(BaseModel):
 
     eval: EvalConfig = Field(default_factory=EvalConfig)
     checkpoint: CheckpointConfig = Field(default_factory=CheckpointConfig)
+
+    @field_validator("features_extractor")
+    @classmethod
+    def _known_extractor(cls, v: str) -> str:
+        # Lazy import: retro_rl.models.policies pulls in torch, which we keep
+        # off the config import path. The registry is the single source of
+        # truth for valid names.
+        from retro_rl.models.policies import FEATURE_EXTRACTORS
+
+        if v not in FEATURE_EXTRACTORS:
+            raise ValueError(
+                f"features_extractor must be one of {sorted(FEATURE_EXTRACTORS)}; got {v!r}"
+            )
+        return v
+
+    @field_validator("features_dim")
+    @classmethod
+    def _features_dim_positive(cls, v: int) -> int:
+        if v < 1:
+            raise ValueError(f"features_dim must be >= 1, got {v}")
+        return v
 
 
 # ---------------------------------------------------------------------------
