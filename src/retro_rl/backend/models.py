@@ -124,6 +124,7 @@ class RunInfo(BaseModel):
     run_name: str
     has_best: bool
     best_return: float | None
+    best_length: float | None  # max eval/mean_ep_length seen in TB; None if not available
     latest_step: int | None
     checkpoint_count: int = Field(..., ge=0)
     config_snapshot_path: str | None  # repo-relative path to config_snapshot.json

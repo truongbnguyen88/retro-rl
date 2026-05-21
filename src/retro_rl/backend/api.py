@@ -197,8 +197,9 @@ def _register_routes(app: FastAPI) -> None:
     @app.get("/runs", response_model=RunList, tags=["catalog"])
     def list_runs(
         resolver: Annotated[CheckpointResolver, Depends(get_resolver)],
+        tb_root: Annotated[Path, Depends(get_tb_root)],
     ) -> RunList:
-        return RunList(runs=_build_run_list(resolver))
+        return RunList(runs=_build_run_list(resolver, tb_root))
 
     @app.get(
         "/runs/{run_name}/metrics",
@@ -321,7 +322,29 @@ def _register_routes(app: FastAPI) -> None:
 # ---------------------------------------------------------------------------
 
 
-def _build_run_list(resolver: CheckpointResolver) -> list[RunInfo]:
+def _get_best_ep_length(run_name: str, tb_root: Path) -> float | None:
+    """Return the highest eval/mean_ep_length seen in the run's TB log, or None."""
+    try:
+        candidates = [p for p in tb_root.glob(f"{run_name}_*") if p.is_dir()]
+        if not candidates:
+            return None
+        tb_dir = max(candidates, key=lambda p: p.stat().st_mtime)
+        from tensorboard.backend.event_processing import event_accumulator
+
+        ea = event_accumulator.EventAccumulator(
+            str(tb_dir),
+            size_guidance={event_accumulator.SCALARS: 0},
+        )
+        ea.Reload()
+        tag = "eval/mean_ep_length"
+        if tag not in ea.Tags().get("scalars", []):
+            return None
+        return max(float(e.value) for e in ea.Scalars(tag))
+    except Exception:
+        return None
+
+
+def _build_run_list(resolver: CheckpointResolver, tb_root: Path) -> list[RunInfo]:
     """Aggregate per-run summary from the resolver's checkpoint enumeration."""
     by_run: dict[str, list[CheckpointInfo]] = {}
     for ci in resolver.list_all():
@@ -338,6 +361,7 @@ def _build_run_list(resolver: CheckpointResolver) -> list[RunInfo]:
                 run_name=run_name,
                 has_best=best is not None,
                 best_return=best.eval_return if best is not None else None,
+                best_length=_get_best_ep_length(run_name, tb_root),
                 latest_step=latest_step,
                 checkpoint_count=len(ckpts),
                 config_snapshot_path=str(config_path) if config_path.exists() else None,

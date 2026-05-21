@@ -71,6 +71,9 @@ def _runs_summary_table(runs: list[dict]) -> None:
             {
                 "run": r["run_name"],
                 "best_return": (f"{r['best_return']:.2f}" if r["best_return"] is not None else "—"),
+                "best_length": (
+                    f"{r['best_length']:.0f}" if r.get("best_length") is not None else "—"
+                ),
                 "latest_step": (f"{r['latest_step']:,}" if r["latest_step"] is not None else "—"),
                 "checkpoints": r["checkpoint_count"],
                 "has_best": "yes" if r["has_best"] else "no",
