@@ -1,11 +1,18 @@
-"""Checkpoint manager with atomic save, JSON sidecars, last-K pruning, best-tracking.
+"""Checkpoint manager with atomic save, JSON sidecars, metric-aware pruning, best-tracking.
 
 One :class:`CheckpointManager` per run. Files written under ``<dir>/<run_name>/``:
 
-* ``step-<N>.zip`` + ``step-<N>.json`` — periodic checkpoints (last-K kept).
+* ``step-<N>.zip`` + ``step-<N>.json`` — periodic checkpoints (see retention below).
 * ``best.zip`` + ``best.json`` — best-by-eval-return (overwritten in place).
 * ``config_snapshot.json`` — written separately by the trainer; sidecars only
   reference it by path.
+
+Retention: a ``step-<N>.zip`` survives pruning if it belongs to *any* of:
+the ``keep_last_k`` most-recent checkpoints (resume safety), the ``keep_top_k``
+highest by ``eval_return``, or the ``keep_top_k`` highest by ``eval_length``.
+The two metric pools let the dashboard replay the genuinely best-performing
+checkpoints by either axis, not just the most recent ones. Metrics are read
+from the sidecars, so the pools survive resume.
 
 Atomicity: every write goes to ``<path>.tmp`` first, then ``os.replace`` swaps
 it into place. Readers (backend) never see a half-written zip.
@@ -72,11 +79,15 @@ class CheckpointManager:
     run_name
         Identifies the run; used as the subdirectory name.
     keep_last_k
-        Retain only the K most recent ``step-<N>.zip`` files; older are deleted.
+        Always retain the K most recent ``step-<N>.zip`` files (resume safety).
         ``best.zip`` is excluded from this rotation.
     keep_best
         If True, ``save`` will write ``best.zip`` whenever ``eval_return``
         beats the current best.
+    keep_top_k
+        Additionally retain the ``keep_top_k`` checkpoints with the highest
+        ``eval_return`` and the ``keep_top_k`` with the highest ``eval_length``
+        (union with the recent-K set). 0 disables the metric pools.
     config_snapshot_path
         Path to the run's config snapshot JSON (written separately by the
         trainer). Recorded in every sidecar for reproducibility.
@@ -88,13 +99,17 @@ class CheckpointManager:
         run_name: str,
         keep_last_k: int = 5,
         keep_best: bool = True,
+        keep_top_k: int = 5,
         config_snapshot_path: Path | None = None,
     ) -> None:
         if keep_last_k < 1:
             raise ValueError(f"keep_last_k must be >= 1, got {keep_last_k}")
+        if keep_top_k < 0:
+            raise ValueError(f"keep_top_k must be >= 0, got {keep_top_k}")
         self.run_name = run_name
         self.keep_last_k = keep_last_k
         self.keep_best = keep_best
+        self.keep_top_k = keep_top_k
         self.config_snapshot_path = config_snapshot_path
 
         self.dir = Path(root) / run_name
@@ -109,6 +124,7 @@ class CheckpointManager:
         model: PPO,
         step: int,
         eval_return: float | None = None,
+        eval_length: float | None = None,
     ) -> Path:
         """Write step checkpoint + sidecar; optionally update ``best``.
 
@@ -119,11 +135,11 @@ class CheckpointManager:
         _atomic_save_vecnormalize(model, zip_path.with_suffix(".pkl"))
         _atomic_write_json(
             zip_path.with_suffix(".json"),
-            self._sidecar_payload(step, eval_return, kind="step"),
+            self._sidecar_payload(step, eval_return, eval_length, kind="step"),
         )
 
         if self.keep_best and eval_return is not None and self._is_new_best(eval_return):
-            self._write_best(model, step, eval_return)
+            self._write_best(model, step, eval_return, eval_length)
 
         self._prune()
         return zip_path
@@ -144,11 +160,18 @@ class CheckpointManager:
 
     # -------------------------------------------------------------- helpers
 
-    def _sidecar_payload(self, step: int, eval_return: float | None, kind: str) -> dict[str, Any]:
+    def _sidecar_payload(
+        self,
+        step: int,
+        eval_return: float | None,
+        eval_length: float | None,
+        kind: str,
+    ) -> dict[str, Any]:
         return {
             "run_name": self.run_name,
             "step": step,
             "eval_return": eval_return,
+            "eval_length": eval_length,
             "kind": kind,
             "config_snapshot_path": (
                 str(self.config_snapshot_path) if self.config_snapshot_path is not None else None
@@ -159,13 +182,15 @@ class CheckpointManager:
     def _is_new_best(self, eval_return: float) -> bool:
         return self._best_return is None or eval_return > self._best_return
 
-    def _write_best(self, model: PPO, step: int, eval_return: float) -> None:
+    def _write_best(
+        self, model: PPO, step: int, eval_return: float, eval_length: float | None
+    ) -> None:
         best_zip = self.dir / "best.zip"
         _atomic_save_zip(model, best_zip)
         _atomic_save_vecnormalize(model, best_zip.with_suffix(".pkl"))
         _atomic_write_json(
             self.dir / "best.json",
-            self._sidecar_payload(step, eval_return, kind="best"),
+            self._sidecar_payload(step, eval_return, eval_length, kind="best"),
         )
         self._best_return = eval_return
 
@@ -193,15 +218,50 @@ class CheckpointManager:
         files.sort()
         return [p for _, p in files]
 
+    def _read_metrics(self, zip_path: Path) -> tuple[float | None, float | None]:
+        """Read ``(eval_return, eval_length)`` from a checkpoint's sidecar."""
+        try:
+            data = json.loads(zip_path.with_suffix(".json").read_text())
+            r = data.get("eval_return")
+            ln = data.get("eval_length")
+            return (
+                float(r) if r is not None else None,
+                float(ln) if ln is not None else None,
+            )
+        except (json.JSONDecodeError, ValueError, OSError):
+            return (None, None)
+
     def _prune(self) -> None:
-        ckpts = self._step_checkpoints()
-        excess = len(ckpts) - self.keep_last_k
-        if excess <= 0:
-            return
-        for old in ckpts[:excess]:
-            old.unlink(missing_ok=True)
-            old.with_suffix(".json").unlink(missing_ok=True)
-            old.with_suffix(".pkl").unlink(missing_ok=True)
+        """Delete step checkpoints not protected by recency or either metric pool.
+
+        Protected = (recent keep_last_k) ∪ (top keep_top_k by eval_return) ∪
+        (top keep_top_k by eval_length). Checkpoints lacking a metric simply
+        don't compete for that pool.
+        """
+        ckpts = self._step_checkpoints()  # ascending by step
+        protected: set[Path] = set(ckpts[-self.keep_last_k :])
+
+        if self.keep_top_k > 0:
+            metrics = {p: self._read_metrics(p) for p in ckpts}
+            by_return = sorted(
+                (p for p in ckpts if metrics[p][0] is not None),
+                key=lambda p: metrics[p][0],  # type: ignore[arg-type,return-value]
+                reverse=True,
+            )
+            by_length = sorted(
+                (p for p in ckpts if metrics[p][1] is not None),
+                key=lambda p: metrics[p][1],  # type: ignore[arg-type,return-value]
+                reverse=True,
+            )
+            protected |= set(by_return[: self.keep_top_k])
+            protected |= set(by_length[: self.keep_top_k])
+
+        for p in ckpts:
+            if p in protected:
+                continue
+            p.unlink(missing_ok=True)
+            p.with_suffix(".json").unlink(missing_ok=True)
+            p.with_suffix(".pkl").unlink(missing_ok=True)
 
 
 __all__ = ["CheckpointManager"]

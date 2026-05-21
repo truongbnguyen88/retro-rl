@@ -181,7 +181,9 @@ class EvalAndVideoCallback(BaseCallback):
         self.logger.record("eval/mean_length", mean_length)
         self.logger.dump(self.num_timesteps)
 
-        self.manager.save(self.model, self.num_timesteps, eval_return=mean_return)
+        self.manager.save(
+            self.model, self.num_timesteps, eval_return=mean_return, eval_length=mean_length
+        )
 
         if self.video_dir is not None and frames:
             write_mp4(

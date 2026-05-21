@@ -209,6 +209,7 @@ class CheckpointConfig(BaseModel):
     every_steps: int = 250_000
     keep_last_k: int = 5
     keep_best: bool = True
+    keep_top_k: int = 5  # retain top-K-by-return AND top-K-by-length (union, on top of recent-K)
 
 
 class TrainConfig(BaseModel):

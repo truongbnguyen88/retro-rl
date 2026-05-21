@@ -106,6 +106,7 @@ def train(cfg: TrainConfig, resume_from: Path | None = None) -> Path:
         run_name=cfg.run_name,
         keep_last_k=cfg.checkpoint.keep_last_k,
         keep_best=cfg.checkpoint.keep_best,
+        keep_top_k=cfg.checkpoint.keep_top_k,
         config_snapshot_path=config_snapshot_path,
     )
 

@@ -123,12 +123,62 @@ def test_pkl_sidecar_written_for_step_and_best(tmp_path: Path):
 
 
 def test_pkl_sidecar_pruned_with_zip(tmp_path: Path):
-    mgr = CheckpointManager(root=tmp_path, run_name="r", keep_last_k=2)
+    mgr = CheckpointManager(root=tmp_path, run_name="r", keep_last_k=2, keep_top_k=0)
     for s in (10, 20, 30, 40):
         mgr.save(_FakeModel(vecnormalize=_FakeVecNormalize()), step=s, eval_return=None)
 
     pkls = sorted(int(p.stem.split("-")[1]) for p in (tmp_path / "r").glob("step-*.pkl"))
     assert pkls == [30, 40]
+
+
+# ---------------------------------------------------------------------------
+# Metric-aware retention (top-K by return / by length)
+# ---------------------------------------------------------------------------
+
+
+def _steps_on_disk(mgr: CheckpointManager) -> list[int]:
+    return sorted(int(p.stem.split("-")[1]) for p in mgr.dir.glob("step-*.zip"))
+
+
+def test_sidecar_records_eval_length(tmp_path: Path):
+    mgr = CheckpointManager(root=tmp_path, run_name="r")
+    mgr.save(_FakeModel(), step=10, eval_return=5.0, eval_length=123.0)
+    meta = json.loads((tmp_path / "r" / "step-10.json").read_text())
+    assert meta["eval_length"] == 123.0
+
+
+def test_top_k_by_return_protects_old_checkpoint(tmp_path: Path):
+    # keep_last_k=2 would drop step 10, but its high return keeps it (top_k=1).
+    mgr = CheckpointManager(root=tmp_path, run_name="r", keep_last_k=2, keep_top_k=1)
+    mgr.save(_FakeModel(), step=10, eval_return=100.0, eval_length=1.0)
+    mgr.save(_FakeModel(), step=20, eval_return=2.0, eval_length=2.0)
+    mgr.save(_FakeModel(), step=30, eval_return=3.0, eval_length=3.0)
+    mgr.save(_FakeModel(), step=40, eval_return=4.0, eval_length=4.0)
+    # recent {30,40} ∪ top-return {10} ∪ top-length {40} → 20 is pruned.
+    assert _steps_on_disk(mgr) == [10, 30, 40]
+
+
+def test_top_k_by_length_protects_old_checkpoint(tmp_path: Path):
+    mgr = CheckpointManager(root=tmp_path, run_name="r", keep_last_k=2, keep_top_k=1)
+    mgr.save(_FakeModel(), step=10, eval_return=1.0, eval_length=100.0)
+    mgr.save(_FakeModel(), step=20, eval_return=2.0, eval_length=2.0)
+    mgr.save(_FakeModel(), step=30, eval_return=3.0, eval_length=3.0)
+    mgr.save(_FakeModel(), step=40, eval_return=4.0, eval_length=4.0)
+    # recent {30,40} ∪ top-return {40} ∪ top-length {10} → 20 is pruned.
+    assert _steps_on_disk(mgr) == [10, 30, 40]
+
+
+def test_metric_pools_survive_resume(tmp_path: Path):
+    # A fresh manager instance reads metrics from sidecars, so pools persist.
+    mgr1 = CheckpointManager(root=tmp_path, run_name="r", keep_last_k=2, keep_top_k=1)
+    mgr1.save(_FakeModel(), step=10, eval_return=100.0, eval_length=100.0)
+    mgr1.save(_FakeModel(), step=20, eval_return=2.0, eval_length=2.0)
+
+    mgr2 = CheckpointManager(root=tmp_path, run_name="r", keep_last_k=2, keep_top_k=1)
+    mgr2.save(_FakeModel(), step=30, eval_return=3.0, eval_length=3.0)
+    mgr2.save(_FakeModel(), step=40, eval_return=4.0, eval_length=4.0)
+    # step 10 (top return AND length) survives across the manager restart.
+    assert _steps_on_disk(mgr2) == [10, 30, 40]
 
 
 # ---------------------------------------------------------------------------
