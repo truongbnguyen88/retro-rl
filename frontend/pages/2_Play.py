@@ -67,28 +67,62 @@ if not ckpts:
 
 
 def _checkpoint_label(c: dict) -> str:
-    ret = f"{c['eval_return']:.1f}" if c["eval_return"] is not None else "—"
-    return f"{c['id']}  ·  step {c['step']:,}  ·  return {ret}"
+    ret = f"{c['eval_return']:.1f}" if c.get("eval_return") is not None else "—"
+    ln = f"{c['eval_length']:.0f}" if c.get("eval_length") is not None else "—"
+    return f"{c['id']}  ·  step {c['step']:,}  ·  return {ret}  ·  len {ln}"
 
 
-# Default focus: prefer a "best" checkpoint from the most recent run.
-best_ckpts = [c for c in ckpts if c["kind"] == "best"]
-default_idx = 0
-if best_ckpts:
-    pick = max(best_ckpts, key=lambda c: c["timestamp"])
-    default_idx = ckpts.index(pick)
+def _top_k_by_metric(all_ckpts: list[dict], metric_key: str, k: int = 5) -> list[dict]:
+    """Per run, the ``k`` checkpoints with the highest ``metric_key``.
+
+    ``metric_key`` is ``eval_return`` (mean reward) or ``eval_length`` (mean
+    episode length). Checkpoints lacking that metric (eval never ran at that
+    step) can't be ranked, so they're dropped. Runs are ordered by their best
+    value so the strongest run — and the global-best checkpoint — sits at
+    index 0.
+
+    Note: this ranks only checkpoints still on disk. The trainer keeps
+    ``keep_last_k`` step checkpoints + ``best``, so a high-scoring early
+    checkpoint that was pruned can't reappear here.
+    """
+    by_run: dict[str, list[dict]] = {}
+    for c in all_ckpts:
+        if c.get(metric_key) is None:
+            continue
+        by_run.setdefault(c["run_name"], []).append(c)
+    runs_ranked = sorted(
+        by_run.values(),
+        key=lambda lst: max(c[metric_key] for c in lst),
+        reverse=True,
+    )
+    out: list[dict] = []
+    for lst in runs_ranked:
+        out.extend(sorted(lst, key=lambda c: c[metric_key], reverse=True)[:k])
+    return out
+
 
 # ---- controls
 ctrl_col, opts_col = st.columns([2, 1])
 with ctrl_col:
-    selected_idx = st.selectbox(
-        "Checkpoint",
-        range(len(ckpts)),
-        format_func=lambda i: _checkpoint_label(ckpts[i]),
-        index=default_idx,
+    sort_metric = st.radio(
+        "Rank checkpoints by",
+        ["mean_reward", "mean_length"],
+        horizontal=True,
         disabled=st.session_state.ep is not None,
     )
-    selected = ckpts[selected_idx]
+    metric_key = "eval_return" if sort_metric == "mean_reward" else "eval_length"
+    playable = _top_k_by_metric(ckpts, metric_key, k=5)
+    if not playable:
+        st.warning(f"No checkpoints carry an {sort_metric} value to rank by — showing all.")
+        playable = ckpts
+    selected_idx = st.selectbox(
+        f"Checkpoint (top 5 per run by {sort_metric})",
+        range(len(playable)),
+        format_func=lambda i: _checkpoint_label(playable[i]),
+        index=0,
+        disabled=st.session_state.ep is not None,
+    )
+    selected = playable[selected_idx]
 with opts_col:
     seed = st.number_input("Seed (optional)", min_value=0, value=0, step=1)
     use_seed = st.checkbox("Use seed", value=False)

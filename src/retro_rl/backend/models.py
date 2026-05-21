@@ -53,6 +53,7 @@ class CheckpointInfo(BaseModel):
     kind: Literal["step", "best"]
     step: int = Field(..., ge=0)
     eval_return: float | None  # None when sidecar has no eval signal
+    eval_length: float | None = None  # eval/mean_length at this step (TB join); None if absent
     timestamp: str  # ISO-8601 from sidecar
     path: str  # repo-relative .zip path (frontend may display)
 

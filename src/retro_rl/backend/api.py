@@ -191,8 +191,19 @@ def _register_routes(app: FastAPI) -> None:
     @app.get("/checkpoints", response_model=CheckpointList, tags=["catalog"])
     def list_checkpoints(
         resolver: Annotated[CheckpointResolver, Depends(get_resolver)],
+        tb_root: Annotated[Path, Depends(get_tb_root)],
     ) -> CheckpointList:
-        return CheckpointList(checkpoints=resolver.list_all())
+        # Enrich sidecar-derived checkpoints with eval_length from TB, joining
+        # by exact step. One TB reload per run (cached within this request).
+        length_maps: dict[str, dict[int, float]] = {}
+        enriched: list[CheckpointInfo] = []
+        for ci in resolver.list_all():
+            if ci.run_name not in length_maps:
+                length_maps[ci.run_name] = _eval_length_by_step(ci.run_name, tb_root)
+            enriched.append(
+                ci.model_copy(update={"eval_length": length_maps[ci.run_name].get(ci.step)})
+            )
+        return CheckpointList(checkpoints=enriched)
 
     @app.get("/runs", response_model=RunList, tags=["catalog"])
     def list_runs(
@@ -322,12 +333,17 @@ def _register_routes(app: FastAPI) -> None:
 # ---------------------------------------------------------------------------
 
 
-def _get_best_ep_length(run_name: str, tb_root: Path) -> float | None:
-    """Return the highest eval/mean_ep_length seen in the run's TB log, or None."""
+def _eval_length_by_step(run_name: str, tb_root: Path) -> dict[int, float]:
+    """Map env-step → eval/mean_length from the run's latest TB log.
+
+    Checkpoint sidecars don't store episode length, only eval_return. The
+    length lives in TB; checkpoint steps that ran an eval align exactly with a
+    TB eval step, so a step-keyed join is lossless. Returns {} on any failure.
+    """
     try:
         candidates = [p for p in tb_root.glob(f"{run_name}_*") if p.is_dir()]
         if not candidates:
-            return None
+            return {}
         tb_dir = max(candidates, key=lambda p: p.stat().st_mtime)
         from tensorboard.backend.event_processing import event_accumulator
 
@@ -338,10 +354,16 @@ def _get_best_ep_length(run_name: str, tb_root: Path) -> float | None:
         ea.Reload()
         tag = "eval/mean_length"
         if tag not in ea.Tags().get("scalars", []):
-            return None
-        return max(float(e.value) for e in ea.Scalars(tag))
+            return {}
+        return {int(e.step): float(e.value) for e in ea.Scalars(tag)}
     except Exception:
-        return None
+        return {}
+
+
+def _get_best_ep_length(run_name: str, tb_root: Path) -> float | None:
+    """Return the highest eval/mean_length seen in the run's TB log, or None."""
+    vals = _eval_length_by_step(run_name, tb_root)
+    return max(vals.values()) if vals else None
 
 
 def _build_run_list(resolver: CheckpointResolver, tb_root: Path) -> list[RunInfo]:
