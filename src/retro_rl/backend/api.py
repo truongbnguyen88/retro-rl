@@ -336,7 +336,7 @@ def _get_best_ep_length(run_name: str, tb_root: Path) -> float | None:
             size_guidance={event_accumulator.SCALARS: 0},
         )
         ea.Reload()
-        tag = "eval/mean_ep_length"
+        tag = "eval/mean_length"
         if tag not in ea.Tags().get("scalars", []):
             return None
         return max(float(e.value) for e in ea.Scalars(tag))
