@@ -47,3 +47,6 @@ wandb/
 .env
 .env.local
 outputs/v6_stdout.log
+
+# graphify knowledge-graph artifacts (regenerable from source)
+graphify-out/
