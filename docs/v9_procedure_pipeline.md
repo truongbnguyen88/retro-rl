@@ -301,60 +301,53 @@ projection holds ~88% of the weights** despite the "deep ResNet" label.
 
 ---
 
-## 5. How it's trained — the PPO loop
+## 5. How it's trained — PPO
 
 PPO is **on-policy**: collect a batch with the *current* weights, update, throw
-the batch away, repeat.
+the batch away, repeat. §5.1 is the operational loop; §5.2–§5.4 then unpack what
+`obs` is, *why* the update is shaped the way it is, and how GAE estimates
+advantages.
+
+### 5.1 The training loop (one iteration, v9 numbers)
 
 **1. Rollout collection.** 8 parallel envs (`n_envs=8`) each run `n_steps=128`
 → **1024 transitions** per iteration. Each transition stores
 `(obs, action, reward, V(s), log π(a|s), done)`. The `V(s)` and `log π` recorded
-here are the "old policy" reference.
+here are the "old policy" reference (what `obs` actually is: §5.2).
 
 **2. Reward normalization (the v9 fix).** `VecNormalize(norm_reward=True)`
 divides rewards by a running std so returns sit at ~unit variance, making the
 value regression well-conditioned (EV 0.47→0.98, value_loss ~0.02 vs v8's
 ~hundreds). Eval runs on a bare env reporting raw returns, so the metric stays
-comparable.
+comparable. (Why this was decisive: §5.4.)
 
-**3. Advantage estimation (GAE).** Using recorded values and `γ=0.99, λ=0.95`:
-
-- `δ_t = r_t + γ V(s_{t+1}) − V(s_t)`  (TD error)
-- `Â_t = Σ (γλ)^k δ_{t+k}`  (exponentially-weighted; bootstrapped at truncation)
-- `Â` answers "was this action better or worse than the critic expected?"
+**3. Advantage estimation (GAE).** From the recorded values, compute advantages
+`Â_t` and returns `R_t` for all 1024 transitions with `γ=0.99, λ=0.95`, then
+normalize advantages to mean 0 / std 1 (`normalize_advantage=true`). Full
+treatment in §5.4.
 
 **4. Optimization.** For `n_epochs=4`, shuffle the 1024 transitions into
-minibatches of 256 and minimize:
+minibatches of 256 and minimize the PPO objective
 
 ```
-L = L_policy  +  vf_coef · L_value  −  ent_coef · H(π)
+L = L^CLIP  −  c1 · L^VF  +  c2 · H(π)
 ```
 
-- **Clipped policy loss:** with ratio `r = π_new(a|s) / π_old(a|s)`,
-  `L_policy = −E[ min( r·Â , clip(r, 1−ε, 1+ε)·Â ) ]`, `ε = clip_range = 0.1`.
-  The clip is the trust region — it forbids moving the policy too far from the
-  data-collecting policy, which is what makes PPO stable.
-- **Value loss:** `vf_coef = 0.5 × MSE(V_pred, returns)` — trains the critic.
-- **Entropy bonus:** `−ent_coef · H(π)` rewards a less-peaked distribution →
-  exploration. v9 anneals `ent_coef` 0.02 → 0.001 over 4M steps (this schedule
-  annealed too fast and froze the policy at ~3.1M — a known v10 lever).
+(clipped policy loss + value loss + entropy bonus; full derivation and the role
+of each term in §5.3). `c1 = vf_coef = 0.5`; `c2 = ent_coef`, annealed
+0.02 → 0.001 over 4M steps — this schedule annealed too fast and froze the
+policy at ~3.1M, a known v10 lever.
 
 **5. Backprop is end-to-end.** Gradients from the combined loss flow through the
 heads **and the shared IMPALA conv backbone** — the visual features are
 *learned*, shaped by what helps predict value and improve the policy.
 `learning_rate = 1e-4`, `max_grad_norm = 0.5`.
 
-**6. Repeat** with updated weights on fresh data.
+**6. Repeat** with updated weights on fresh data. The **discard** is what makes
+PPO *on-policy*: data is only valid for a policy close to the one that generated
+it, which the §5.3 clip enforces.
 
----
-
-## 6. PPO internals (deep dive)
-
-Section 5 is the operational summary. This section unpacks three things people
-most often ask about: what `obs` actually is, *why* the PPO update is shaped the
-way it is, and how GAE estimates advantages.
-
-### 6.1 What `obs` is — observation vs. state
+### 5.2 What `obs` is — observation vs. state
 
 `obs` is the **observation**: the actual tensor fed into the network — in v9 the
 **`(4, 84, 84)` uint8 stack** (4 grayscale 84×84 frames), stored in the rollout
@@ -375,7 +368,7 @@ Everything else is computed from or alongside it.
 > `V(s)` loosely; here `V` is really `V(o_t)` — the value of the *observation*,
 > since that is all the network has.
 
-### 6.2 How the PPO update is built
+### 5.3 How the PPO update is built
 
 **Foundation — policy gradients.** We maximize `J(θ) = E_π[ Σ_t γ^t r_t ]`. The
 policy gradient theorem gives
@@ -391,7 +384,7 @@ where `Ψ_t` measures "how good was `a_t`." The simplest choice (REINFORCE) sets
 2. **Destructive steps** — one large step can collapse the policy, and the data
    was collected under the *old* policy, so it is no longer valid for the new one.
 
-PPO fixes (1) with **advantages + GAE** (§6.3) and (2) with the **clipped
+PPO fixes (1) with **advantages + GAE** (§5.4) and (2) with the **clipped
 surrogate objective**.
 
 **The importance-sampling ratio.** PPO reuses each batch for several gradient
@@ -439,9 +432,9 @@ L(θ) = L^CLIP(θ)  −  c1 · L^VF(θ)  +  c2 · H[π_θ](s)
 **The `approx_kl` diagnostic** in the logs is `E[log π_old − log π_new]`, an
 estimate of how far the policy moved this iteration. When it → 0 (v9 at ~3.1M)
 the policy has stopped updating — usually because advantages shrank and/or the
-entropy term annealed away. That is the late-run freeze noted in §5.
+entropy term annealed away. That is the late-run freeze flagged in step 4 of §5.1.
 
-### 6.3 Generalized Advantage Estimation (GAE)
+### 5.4 Generalized Advantage Estimation (GAE)
 
 **The advantage.** `A(s, a) = Q(s, a) − V(s)` — "how much better is action `a`
 than the policy's *average* behavior at `s`?" Using `A` instead of the raw
@@ -509,7 +502,7 @@ true` — a final variance-control step.)
 
 ---
 
-## 7. Why pair *this* network with *this* algorithm
+## 6. Why pair *this* network with *this* algorithm
 
 - **IMPALA CNN** solves the *perception* problem: enough depth + residual
   gradient paths to represent a cluttered bullet-hell scene where the Nature-CNN
@@ -524,7 +517,7 @@ network changed *what* the agent could see; PPO's learning rule never changed.
 
 ---
 
-## 8. v9 hyperparameter reference
+## 7. v9 hyperparameter reference
 
 | Group | Setting | Value |
 |---|---|---|
