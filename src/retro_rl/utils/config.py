@@ -239,6 +239,10 @@ class TrainConfig(BaseModel):
     features_extractor: str = "nature_cnn"
     features_dim: int = 512
 
+    # LSTM hidden size for algorithm="recurrent_ppo" (sb3-contrib RecurrentPPO).
+    # Ignored by plain PPO. The LSTM sits after the feature extractor.
+    lstm_hidden_size: int = 256
+
     # Wrap the train VecEnv in SB3 VecNormalize with norm_reward=True (returns
     # rescaled to ~unit variance; observations are NOT normalized — images are
     # scaled in the CNN forward). Shrinks the value-target scale so the value
@@ -256,6 +260,20 @@ class TrainConfig(BaseModel):
 
     eval: EvalConfig = Field(default_factory=EvalConfig)
     checkpoint: CheckpointConfig = Field(default_factory=CheckpointConfig)
+
+    @field_validator("algorithm")
+    @classmethod
+    def _known_algorithm(cls, v: str) -> str:
+        if v not in {"ppo", "recurrent_ppo"}:
+            raise ValueError(f"algorithm must be 'ppo' or 'recurrent_ppo'; got {v!r}")
+        return v
+
+    @field_validator("lstm_hidden_size")
+    @classmethod
+    def _lstm_hidden_positive(cls, v: int) -> int:
+        if v < 1:
+            raise ValueError(f"lstm_hidden_size must be >= 1, got {v}")
+        return v
 
     @field_validator("features_extractor")
     @classmethod

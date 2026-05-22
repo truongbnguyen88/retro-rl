@@ -209,11 +209,25 @@ class EvalAndVideoCallback(BaseCallback):
         for ep_i in range(self.n_episodes):
             seed = (self.eval_seed + ep_i) if self.eval_seed is not None else None
             obs, _ = self._eval_env.reset(seed=seed)
+            # Recurrent policies (RecurrentPPO) need their LSTM hidden state
+            # threaded across steps and reset at each episode boundary:
+            # `lstm_states` carries the hidden/cell state, `episode_start` is
+            # True only on the first step so the policy zeroes the state there.
+            # Plain PPO ignores both args and returns state=None — so this loop
+            # is correct for both algorithms.
+            lstm_states = None
+            episode_start = np.ones((1,), dtype=bool)
             ep_return = 0.0
             ep_length = 0
             done = False
             while not done:
-                action, _ = self.model.predict(obs, deterministic=True)
+                action, lstm_states = self.model.predict(
+                    obs,
+                    state=lstm_states,
+                    episode_start=episode_start,
+                    deterministic=True,
+                )
+                episode_start = np.zeros((1,), dtype=bool)
                 obs, reward, terminated, truncated, _ = self._eval_env.step(action)
                 done = bool(terminated) or bool(truncated)
                 ep_return += float(reward)

@@ -1,0 +1,13 @@
+# v10 environment config — inherits v9 (configs/env_v9.yaml) and drops only
+# frame_stack. v10 uses RecurrentPPO: the LSTM hidden state owns temporal
+# context, so stacking frames *and* recurrence would double-count motion.
+# Everything else (action_repeat=8, auto_fire.period=12, reward shaping) is
+# unchanged from v9.
+#
+#   - frame_stack 4 → 1: observation becomes (1, 84, 84). ImpalaCNN reads the
+#     input channel count from the obs space, so the backbone is unchanged; the
+#     LSTM after the 256-d features carries history instead.
+
+extends: configs/env_v9.yaml
+
+frame_stack: 1

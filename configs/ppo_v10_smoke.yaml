@@ -1,0 +1,14 @@
+# v10 smoke test — 500K-step validation of the RecurrentPPO wiring before the
+# full 4M run. Inherits ppo_v10.yaml; only shortens the run and renames it.
+#
+# What to check at 500K (eval every 100K → 5 evals):
+#   - no crash; RecurrentPPO + IMPALA + VecNormalize + the LSTM-aware eval loop
+#     all run end to end;
+#   - explained_variance climbs (healthy value head, as v9 reached);
+#   - eval/mean_return trends up (policy is learning);
+#   - report the real fps (LSTM is heavier than PPO — sets the 4M wall-clock).
+
+extends: configs/ppo_v10.yaml
+
+run_name: ppo_airstriker_v10_smoke
+total_timesteps: 500000

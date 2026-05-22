@@ -28,11 +28,13 @@ import json
 from pathlib import Path
 
 import gymnasium as gym
+from sb3_contrib import RecurrentPPO
 from stable_baselines3 import PPO
 from stable_baselines3.common.callbacks import CallbackList
 from stable_baselines3.common.vec_env import SubprocVecEnv, VecMonitor, VecNormalize
 
 from retro_rl.agents.ppo import build_ppo
+from retro_rl.agents.recurrent_ppo import build_recurrent_ppo
 from retro_rl.env import make_env, make_env_fn
 from retro_rl.training.callbacks import (
     EntCoefLinearSchedule,
@@ -85,16 +87,21 @@ def train(cfg: TrainConfig, resume_from: Path | None = None) -> Path:
     if cfg.normalize_reward:
         log.info("VecNormalize active: norm_reward=True norm_obs=False gamma=%.4g", cfg.ppo.gamma)
 
+    algo_cls = RecurrentPPO if cfg.algorithm == "recurrent_ppo" else PPO
     if resume_from is None:
         log.info(
-            "features_extractor=%s features_dim=%d",
+            "algorithm=%s features_extractor=%s features_dim=%d",
+            cfg.algorithm,
             cfg.features_extractor,
             cfg.features_dim,
         )
-        model = build_ppo(vec_env, cfg, tb_log_path=cfg.log_dir)
+        if cfg.algorithm == "recurrent_ppo":
+            model = build_recurrent_ppo(vec_env, cfg, tb_log_path=cfg.log_dir)
+        else:
+            model = build_ppo(vec_env, cfg, tb_log_path=cfg.log_dir)
     else:
-        log.info("resuming from %s", resume_from)
-        model = PPO.load(
+        log.info("resuming from %s (algorithm=%s)", resume_from, cfg.algorithm)
+        model = algo_cls.load(
             str(resume_from),
             env=vec_env,
             tensorboard_log=str(cfg.log_dir),

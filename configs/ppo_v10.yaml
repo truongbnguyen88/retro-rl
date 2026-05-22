@@ -1,0 +1,30 @@
+# v10 training config — recurrent policy ablation.
+# Inherits configs/ppo_v9.yaml and changes only the algorithm (PPO →
+# RecurrentPPO) and the env (frame_stack 4 → 1, via configs/env_v10.yaml). v9's
+# config is left untouched so its run stays reproducible.
+#
+# v10 changes vs v9:
+#   1. algorithm ppo → recurrent_ppo  (sb3-contrib RecurrentPPO, CnnLstmPolicy)
+#   2. lstm_hidden_size 256           (LSTM after the 256-d IMPALA features)
+#   3. frame_stack 4 → 1              (in configs/env_v10.yaml — LSTM owns memory)
+#
+# Inherited from v9 unchanged: IMPALA ResNet (features_dim 256), learning_rate
+# 1e-4 (linear→0), VecNormalize (norm_reward), ent_coef schedule 0.02→0.001,
+# total_timesteps 4M, n_envs 8, n_steps 128 (= BPTT sequence length).
+#
+# Rationale: v9 fixed the value side (EV→0.98) and ~2×'d return, but showed
+# residual action jitter and no long-horizon memory across Airstriker's
+# deterministic spawn patterns. The LSTM targets temporal credit assignment and
+# memory that frame-stacking can't provide.
+#
+# NOTE: validate with configs/ppo_v10_smoke.yaml (500K) before the full 4M run —
+# RecurrentPPO is heavier than PPO, so confirm throughput, that EV is healthy,
+# and that eval LSTM-state threading is correct first.
+
+extends: configs/ppo_v9.yaml
+
+run_name: ppo_airstriker_v10
+env_config: configs/env_v10.yaml
+
+algorithm: recurrent_ppo
+lstm_hidden_size: 256
