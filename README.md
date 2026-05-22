@@ -53,6 +53,8 @@ See [TASKS.md](TASKS.md) for milestone tracking. **Milestones 1–7 complete** (
 
 ## Training notes (Airstriker)
 
+For a from-scratch walkthrough of the current (v9) training pipeline — observation inputs, the IMPALA ResNet backbone, the PPO learning loop, and GAE — see [docs/v9_procedure_pipeline.md](docs/v9_procedure_pipeline.md).
+
 We iterated the action space, reward shaping, optimiser regularisation, and the fire wrapper across many runs before reaching a stable setup. Each iteration's diagnosis is preserved in the TASKS.md decisions log; the short version:
 
 | Version | Problem | Fix |

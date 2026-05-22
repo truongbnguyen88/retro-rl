@@ -101,8 +101,11 @@ For vertical-scroll games like Airstriker, `x_progress` is disabled and
 ### `models/` — feature extractors
 
 `RetroCNN` is a thin wrapper over SB3's `NatureCNN` architecture with a
-configurable `features_dim`. Lives in `models/` because we want to swap
-in LSTM/attention heads later without touching `agents/` or `training/`.
+configurable `features_dim`. `ImpalaCNN` is the deeper residual alternative
+(used by v9), selectable via `TrainConfig.features_extractor`. Both live in
+`models/` because we want to swap in LSTM/attention heads later without
+touching `agents/` or `training/`. For a full walkthrough of the IMPALA
+backbone + PPO pipeline, see [`v9_procedure_pipeline.md`](v9_procedure_pipeline.md).
 
 ### `agents/` — algorithm wrappers
 
@@ -225,5 +228,6 @@ The IPC cost at `n_envs=1` is negligible vs env stepping.
 
 - Setup, including macOS-specific stable-retro install: [`environment.md`](environment.md).
 - Day-to-day training workflow + knobs: [`training.md`](training.md).
+- IMPALA ResNet + PPO pipeline walkthrough (inputs, network, learning loop, GAE): [`v9_procedure_pipeline.md`](v9_procedure_pipeline.md).
 - Backend route reference: live at `http://localhost:8000/docs` (OpenAPI).
 - Operational contract + module dependency rule: [`CLAUDE.md`](../CLAUDE.md).
