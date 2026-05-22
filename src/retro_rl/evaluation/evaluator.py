@@ -5,8 +5,11 @@ aggregate metrics plus optional first-episode frames for video.
 
 Agent interface
 ---------------
-Any object with ``predict(obs, deterministic=bool) -> (action, _state)``
-qualifies — both SB3 ``PPO`` and our ``RandomAgent`` conform structurally.
+Any object satisfying the :class:`~retro_rl.agents.base.Agent` protocol —
+``predict(obs, state, episode_start, deterministic) -> (action, next_state)``.
+The returned ``next_state`` is threaded back across steps so recurrent policies
+(``RecurrentPPO``) keep their LSTM hidden state; plain ``PPO`` and
+``RandomAgent`` ignore it and return ``None``.
 
 Death counting
 --------------
@@ -45,7 +48,9 @@ def evaluate(
     Parameters
     ----------
     agent
-        Object with ``predict(obs, deterministic=bool) -> (action, state)``.
+        Object satisfying the :class:`~retro_rl.agents.base.Agent` protocol.
+        Its returned recurrent state is threaded across steps within an episode
+        and reset at each episode boundary.
     env
         Single (non-vectorised) ``gym.Env``. Must be constructed with
         ``render_mode='rgb_array'`` when ``record_video=True``.
@@ -89,8 +94,25 @@ def evaluate(
         ep_stage_cleared = False
         done = False
 
+        # Thread recurrent state across the episode. ``state`` carries the LSTM
+        # hidden/cell state; ``episode_start`` is True only on the first step so
+        # a recurrent policy (RecurrentPPO) zeroes its state at the boundary and
+        # then accumulates memory. Both are reset per episode. Plain PPO and
+        # RandomAgent ignore both args and return state=None, so this is correct
+        # for every Agent. Discarding the returned state (the previous bug) made
+        # recurrent policies run with a perpetually-zeroed hidden state — i.e.
+        # evaluated as if memoryless, underreporting their true return.
+        state: tuple[np.ndarray, ...] | None = None
+        episode_start = np.ones((1,), dtype=bool)
+
         while not done:
-            action, _ = agent.predict(obs, deterministic=deterministic)
+            action, state = agent.predict(
+                obs,
+                state=state,
+                episode_start=episode_start,
+                deterministic=deterministic,
+            )
+            episode_start = np.zeros((1,), dtype=bool)
             obs, reward, terminated, truncated, info = env.step(action)
             done = bool(terminated) or bool(truncated)
             ep_return += float(reward)

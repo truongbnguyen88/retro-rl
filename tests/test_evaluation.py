@@ -23,10 +23,17 @@ from retro_rl.utils.video import write_mp4
 
 
 class _FixedAgent:
-    """Always predicts action 0."""
+    """Always predicts action 0. Conforms to the Agent protocol (accepts and
+    returns recurrent state); records episode_start flags so tests can assert
+    the evaluator threads/resets state correctly."""
 
-    def predict(self, obs, deterministic=True):
-        return 0, None
+    def __init__(self):
+        self.episode_starts: list[bool] = []
+
+    def predict(self, obs, state=None, episode_start=None, deterministic=True):
+        if episode_start is not None:
+            self.episode_starts.append(bool(np.asarray(episode_start).ravel()[0]))
+        return 0, state
 
 
 class _MockEnv:
@@ -281,3 +288,16 @@ def test_write_mp4_accepts_path_string(tmp_path: Path):
     out = str(tmp_path / "str_path.mp4")
     write_mp4(frames, out, fps=5)
     assert Path(out).exists()
+
+
+def test_evaluate_threads_recurrent_state_resets_per_episode():
+    """episode_start must be True only on the first step of each episode, so a
+    recurrent policy zeroes its LSTM state at the boundary and accumulates it
+    within the episode. Regression guard for the prior bug where the evaluator
+    discarded the returned state and never passed episode_start, evaluating
+    recurrent policies as if memoryless."""
+    agent = _FixedAgent()
+    env = _MockEnv(steps_per_episode=3)
+    evaluate(agent, env, n_episodes=2)
+    # 2 episodes × 3 steps; True at the start of each episode, False otherwise.
+    assert agent.episode_starts == [True, False, False, True, False, False]
