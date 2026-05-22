@@ -15,6 +15,7 @@ the code implements it. Milestones 5–6 document the service and UI layers.
 5. [Milestone 4 — Evaluation](#milestone-4--evaluation)
 6. [Milestone 5 — Backend (FastAPI)](#milestone-5--backend-fastapi)
 7. [Milestone 6 — Frontend (Streamlit)](#milestone-6--frontend-streamlit)
+8. [Appendix: LSTM and RecurrentPPO (v10)](#appendix-lstm-and-recurrentppo-v10)
 
 ---
 
@@ -1929,3 +1930,422 @@ Streamlit frontend pulls from backend API → Training, Play, Compare pages
 
 *For the detailed IMPALA ResNet architecture and PPO math in isolation, see
 [docs/v9_procedure_pipeline.md](v9_procedure_pipeline.md).*
+
+---
+
+## Appendix: LSTM and RecurrentPPO (v10)
+
+### A.1 Why LSTM in RL at all
+
+Standard PPO with frame stacking approximates the Markov property by
+concatenating k recent frames:
+
+```
+obs = [frame_{t-3}, frame_{t-2}, frame_{t-1}, frame_t]  →  shape (4, 84, 84)
+```
+
+This is a **fixed-length, handcrafted memory**. It handles motion and velocity
+(4 frames gives direction of movement) but fails at anything requiring
+longer-range memory:
+
+- an enemy that appeared 2 seconds ago and will reappear
+- a spawn pattern that repeats every N frames
+- threat history that exceeds the stack depth
+
+Frame stacking also has a structural limitation: the designer decides at
+design time how far back the agent can "see." If the relevant signal is 10
+frames back but the stack is 4, information is lost by construction.
+
+LSTM provides **learned, adaptive, variable-length memory** — the network
+decides what to remember and for how long, rather than the designer
+hardcoding it.
+
+### A.2 The LSTM cell — the math
+
+An LSTM cell takes three inputs at each step:
+
+- `x_t` — current input (CNN features, shape `[features_dim]`)
+- `h_{t-1}` — previous hidden state `[lstm_size]` — the network's "output," passed forward
+- `c_{t-1}` — previous cell state `[lstm_size]` — the long-term memory "conveyor belt"
+
+Four learned gates (each a linear layer + nonlinearity):
+
+```
+Forget gate:  f_t = σ( W_f · [h_{t-1}, x_t] + b_f )    ← what to erase from cell state
+Input gate:   i_t = σ( W_i · [h_{t-1}, x_t] + b_i )    ← how much new info to write
+Candidate:    g_t = tanh( W_g · [h_{t-1}, x_t] + b_g ) ← what new values to write
+Output gate:  o_t = σ( W_o · [h_{t-1}, x_t] + b_o )    ← what to expose from cell state
+```
+
+All four are computed in one matrix multiply: `W` has shape
+`[4·lstm_size, features_dim + lstm_size]`.
+
+State updates:
+
+```
+Cell state:   c_t = f_t ⊙ c_{t-1}  +  i_t ⊙ g_t
+                    ───────────────     ─────────────
+                    old memory          new memory
+                    scaled by forget    scaled by input gate
+
+Hidden state: h_t = o_t ⊙ tanh(c_t)
+```
+
+`⊙` = element-wise multiply. `σ` = sigmoid ∈ [0,1]. `tanh` ∈ [-1,1].
+
+**Why LSTM solves vanishing gradients vs vanilla RNN:**
+
+Vanilla RNN: `h_t = tanh(W_h · h_{t-1} + W_x · x_t)`
+
+Backward gradient: `∂h_t/∂h_{t-1} = W_h · diag(1 − tanh²(h_t))`
+
+If `||W_h|| < 1` or tanh saturates → gradient shrinks at every step →
+vanishes after ~10 steps.
+
+LSTM cell state gradient: `∂c_t/∂c_{t-1} = f_t` (element-wise, no matrix
+multiply on the backward pass). When the forget gate `f_t ≈ 1` (network
+decides "keep this memory"), gradients flow through `c` with **no decay** —
+the cell state is a gradient highway. The network learns to open the forget
+gate when it needs to preserve a signal across many steps.
+
+### A.3 Architecture in v10
+
+```
+obs (1, 84, 84) uint8         ← frame_stack=1 (single frame, not 4)
+    ↓  /255
+IMPALA CNN  →  256-d features ← same backbone as v9
+    ↓
+LSTM(input=256, hidden=256)
+    takes: (features_t,  h_{t-1},  c_{t-1})
+    emits: (h_t,  c_t)
+    ↓
+h_t (256-d)
+    ├─► Actor MLP [64, 64] Tanh → 9 logits → Categorical → action
+    └─► Critic MLP [64, 64] Tanh → scalar V(s)
+```
+
+**Why frame_stack=1 with LSTM:** With frame_stack=4, the LSTM input already
+contains temporal signal and partially re-learns what stacking encodes. With
+frame_stack=1, the LSTM is the **sole source of temporal memory** — it must
+infer velocity, motion direction, and spawn patterns entirely from the
+sequence of single frames. Harder to train, but tests whether the LSTM
+actually learns useful memory rather than duplicating the stack.
+
+**Parameter count:** LSTM weight matrix `W` has shape
+`[4·256, 256+256] = [1024, 512]` → ~524K parameters for the LSTM alone,
+on top of the CNN (~97K conv + ~991K FC) and heads (~42K). v10 total ≈ 1.66M
+parameters vs v9's 1.13M.
+
+### A.4 How RecurrentPPO changes the training loop
+
+Standard PPO treats every transition in the buffer **independently** — the
+CNN processes each observation without knowing what came before. This allows
+random shuffling of minibatches and parallel independent forward passes.
+
+RecurrentPPO **cannot** do this. The LSTM at step t needs `h_{t-1}` from
+step t-1. The forward pass is **order-dependent and stateful**. This changes
+four things fundamentally.
+
+#### Hidden state threading during rollout collection
+
+During collection, `(h, c)` must be threaded step-to-step and zeroed at
+episode boundaries:
+
+```python
+lstm_states = (zeros(n_layers, n_envs, lstm_size),
+               zeros(n_layers, n_envs, lstm_size))
+
+for step in range(n_steps):   # 128 steps
+    features = cnn(obs)
+    action, value, log_prob, lstm_states = policy.forward(
+        features, lstm_states, episode_starts[step]
+    )
+    # episode boundary masking — applied inside forward():
+    #   h = h * (1 - episode_starts)   ← zero on death, fresh start for ep2
+    #   c = c * (1 - episode_starts)
+
+    buffer.store(..., lstm_states, episode_starts[step])  # ← stored per step
+    obs, reward, done = env.step(action)
+    episode_starts[step+1] = done
+```
+
+Carrying hidden state from a dead episode into a new one would poison the
+memory with irrelevant context — the zero-masking at `episode_starts` is
+load-bearing.
+
+#### Sequence-based minibatches (not random shuffle)
+
+Standard PPO: shuffle 1024 transitions randomly → 4 minibatches of 256.
+
+RecurrentPPO: must maintain temporal order within each env's trajectory.
+
+```
+1024 transitions = 8 envs × 128 steps
+→ 8 sequences of length 128 (one per env)
+→ seqs_per_minibatch = batch_size / seq_len = 256 / 128 = 2
+→ 4 minibatches per epoch  (sequences shuffled, steps within each kept ordered)
+```
+
+Each minibatch uses the stored `(h, c)` at the start of its sequences as
+initial LSTM state — loaded directly from the buffer, not recomputed.
+
+#### Truncated Backpropagation Through Time (TBPTT)
+
+The full 128-step LSTM sequence is used for the forward pass, but the
+backward pass runs through the **entire sequence** (`seq_len = n_steps = 128`
+in this config). The stored initial `(h_start, c_start)` is **detached**
+from the computation graph — gradients do not flow beyond the sequence
+boundary into previous rollouts.
+
+```
+Forward:   step 0 → step 1 → ... → step 127  (h, c thread through all steps)
+Backward:  gradients flow back through all 128 steps, then stop at h_start
+                                                         (detached — TBPTT boundary)
+```
+
+#### Why v10's clip_fraction is elevated (0.35)
+
+During optimization the LSTM is re-run from stored initial states. After one
+gradient update, changed LSTM weights produce different hidden states for the
+same sequence → the effective policy distribution shifts further from
+`π_θ_old` than in standard PPO even for the same parameter-change magnitude.
+Result: `r_t = π_θ / π_θ_old` drifts further from 1.0 → more transitions
+hit the clip → higher `clip_fraction`. This is expected behavior, not a bug.
+If it climbs above 0.5, the right intervention is lowering LR or reducing
+`n_epochs` from 4 to 2.
+
+### A.5 Data size flow — full diagram
+
+```
+═══════════════════════════════════════════════════════════════════════════════
+  PHASE 1 — ROLLOUT COLLECTION  (one decision step, all 8 envs in parallel)
+═══════════════════════════════════════════════════════════════════════════════
+
+  SubprocVecEnv (8 workers)
+  ┌──────────────────────────────────────────────────────┐
+  │  obs_t    (8, 1, 84, 84)  uint8   ← 1 frame, 8 envs │
+  │  h_{t-1}  (1, 8, 256)    float32 ← LSTM hidden state │
+  │  c_{t-1}  (1, 8, 256)    float32 ← LSTM cell state   │
+  └──────────────────┬───────────────────────────────────┘
+                     │
+                     ▼ /255 → float32
+              ┌──────────────┐
+              │  IMPALA CNN  │  processes all 8 envs in parallel (batch=8)
+              ├──────────────┤
+              │ (8, 1,84,84) │
+              │      ↓ Stack 1: Conv(1→16,3×3) + MaxPool(/2) + 2 ResBlocks
+              │ (8,16,42,42) │
+              │      ↓ Stack 2: Conv(16→32,3×3) + MaxPool(/2) + 2 ResBlocks
+              │ (8,32,21,21) │
+              │      ↓ Stack 3: Conv(32→32,3×3) + MaxPool(/2) + 2 ResBlocks
+              │ (8,32,11,11) │
+              │      ↓ ReLU + Flatten
+              │  (8, 3872)   │
+              │      ↓ Linear(3872→256) + ReLU
+              │  (8, 256)    │  ← features_t
+              └──────┬───────┘
+                     │
+                     ▼ reshape to (seq=1, batch=8, input=256)
+              ┌──────────────┐
+              │     LSTM     │  one step forward
+              ├──────────────┤
+              │  input:      │  (1, 8, 256)    ← features_t
+              │  h_{t-1}:    │  (1, 8, 256)    ← carried from previous step
+              │  c_{t-1}:    │  (1, 8, 256)      (zeroed at episode_starts)
+              │              │
+              │  output h_t: │  (1, 8, 256)  →  squeeze  →  (8, 256)
+              │  output c_t: │  (1, 8, 256)
+              └──────┬───────┘
+                     │  h_t  (8, 256)
+               ┌─────┴──────┐
+               ▼            ▼
+        ┌──────────┐  ┌──────────┐
+        │  Actor   │  │  Critic  │
+        │  MLP     │  │  MLP     │
+        ├──────────┤  ├──────────┤
+        │ (8,256)  │  │ (8,256)  │
+        │ Linear   │  │ Linear   │
+        │ (8, 64)  │  │ (8, 64)  │
+        │ Tanh     │  │ Tanh     │
+        │ (8, 64)  │  │ (8, 64)  │
+        │ Linear   │  │ Linear   │
+        │ (8, 64)  │  │ (8, 64)  │
+        │ Tanh     │  │ Tanh     │
+        │ Linear   │  │ Linear   │
+        │  (8, 9)  │  │  (8, 1)  │
+        │ logits   │  │  V(s_t)  │
+        └────┬─────┘  └────┬─────┘
+             │ Categorical  │ squeeze
+             ▼              ▼
+         action (8,)    value (8,)
+         log_prob (8,)
+
+  Store into rollout buffer at slot t:
+    obs[t]            ← (8, 1, 84, 84)  uint8
+    actions[t]        ← (8,)            int64
+    rewards[t]        ← (8,)            float32
+    episode_starts[t] ← (8,)            float32  (1.0 if just reset)
+    values[t]         ← (8,)            float32
+    log_probs[t]      ← (8,)            float32
+    hidden[t]         ← (1, 8, 256)     float32  ← h_t  ★ NEW vs standard PPO
+    cell[t]           ← (1, 8, 256)     float32  ← c_t  ★ NEW vs standard PPO
+
+  Repeat for t = 0 → 127  (128 steps total)
+
+
+═══════════════════════════════════════════════════════════════════════════════
+  PHASE 2 — FULL BUFFER  (after 128 steps × 8 envs)
+═══════════════════════════════════════════════════════════════════════════════
+
+  ┌─────────────────────────────────────────────────────────────────┐
+  │  Field             Shape                dtype    Size           │
+  ├─────────────────────────────────────────────────────────────────┤
+  │  observations   (128, 8, 1, 84, 84)    uint8    ~29 MB         │
+  │  actions        (128, 8)               int64    ~  8 KB        │
+  │  rewards        (128, 8)               float32  ~  4 KB        │
+  │  episode_starts (128, 8)               float32  ~  4 KB        │
+  │  values         (128, 8)               float32  ~  4 KB        │
+  │  log_probs      (128, 8)               float32  ~  4 KB        │
+  │  hidden_states  (128, 1, 8, 256)       float32  ~  1 MB  ★     │
+  │  cell_states    (128, 1, 8, 256)       float32  ~  1 MB  ★     │
+  ├─────────────────────────────────────────────────────────────────┤
+  │  Total ≈ 31 MB   (vs ~29 MB for standard PPO)                   │
+  └─────────────────────────────────────────────────────────────────┘
+                     │
+                     ▼  GAE backward pass (uses values + rewards + episode_starts)
+  ┌─────────────────────────────────────────────────────────────────┐
+  │  advantages     (128, 8)               float32  ← Â_t          │
+  │  returns        (128, 8)               float32  ← R_t=Â_t+V_t  │
+  └─────────────────────────────────────────────────────────────────┘
+
+
+═══════════════════════════════════════════════════════════════════════════════
+  PHASE 3 — SEQUENCE CONSTRUCTION  (reshape buffer for optimization)
+═══════════════════════════════════════════════════════════════════════════════
+
+  Buffer layout:  (128 steps, 8 envs)
+  Viewed as:       8 sequences × 128 steps each
+                   (each env's full trajectory = one sequence)
+
+  seq_len            = n_steps              = 128
+  n_sequences        = n_envs               = 8
+  seqs_per_minibatch = batch_size / seq_len = 256 / 128 = 2
+  n_minibatches      = n_sequences / seqs_per_minibatch = 8 / 2 = 4
+
+  Per epoch: shuffle the 8 sequences, split into 4 minibatches of 2:
+
+  ┌─────────────────┬─────────────────┬─────────────────┬─────────────────┐
+  │  Minibatch 1    │  Minibatch 2    │  Minibatch 3    │  Minibatch 4    │
+  │  env3 + env7    │  env1 + env5    │  env0 + env6    │  env2 + env4    │
+  │  2×128=256 rows │  2×128=256 rows │  2×128=256 rows │  2×128=256 rows │
+  └─────────────────┴─────────────────┴─────────────────┴─────────────────┘
+  Total per epoch: 4 × 256 = 1024 transitions ✓
+
+
+═══════════════════════════════════════════════════════════════════════════════
+  PHASE 4 — OPTIMIZATION FORWARD PASS  (one minibatch: 2 sequences × 128 steps)
+═══════════════════════════════════════════════════════════════════════════════
+
+  Load from buffer:
+    obs            (128, 2, 1, 84, 84)  uint8
+    h_start        (  1, 2,    256)     float32  ← h at step 0 of each sequence
+    c_start        (  1, 2,    256)     float32  ← c at step 0 of each sequence
+    episode_starts (128, 2)             float32
+    actions_old    (128, 2)             int64
+    log_probs_old  (128, 2)             float32
+    advantages     (128, 2)             float32
+    returns        (128, 2)             float32
+
+                     │
+                     ▼ reshape: merge seq+batch for CNN  (128×2 = 256 frames at once)
+              ┌──────────────┐
+              │  IMPALA CNN  │  batch = seq_len × seqs_per_mb = 256
+              ├──────────────┤
+              │ (256,1,84,84)│  → same conv stack as Phase 1
+              │      ↓
+              │  (256, 256)  │  ← features for all 256 frames
+              └──────┬───────┘
+                     │
+                     ▼ reshape back to (seq_len, batch, features) = (128, 2, 256)
+              ┌──────────────────────────────────────────────┐
+              │                  LSTM                        │
+              ├──────────────────────────────────────────────┤
+              │  input:   (128, 2, 256)  ← all 128 steps     │
+              │  h_start: (  1, 2, 256)  ← detached (TBPTT)  │
+              │  c_start: (  1, 2, 256)  ← detached (TBPTT)  │
+              │  mask:    (128, 2)       ← episode_starts     │
+              │                                               │
+              │  internal loop: for t in 0..127:             │
+              │    h = h * (1 − mask[t])  ← zero on reset    │
+              │    h, c = cell(input[t], h, c)               │
+              │                                               │
+              │  output:  (128, 2, 256)  ← h_t all steps     │
+              │  h_T,c_T: (  1, 2, 256)  ← final state       │
+              └──────┬───────────────────────────────────────┘
+                     │  (128, 2, 256)
+                     ▼ reshape → (256, 256)  merge seq+batch for MLP
+               ┌─────┴──────┐
+               ▼            ▼
+        ┌──────────┐  ┌──────────┐
+        │  Actor   │  │  Critic  │
+        │  MLP     │  │  MLP     │
+        │ (256,256)│  │ (256,256)│
+        │    ↓     │  │    ↓     │
+        │ (256, 9) │  │ (256, 1) │
+        │  logits  │  │ V_θ(s)   │
+        └────┬─────┘  └────┬─────┘
+             │              │ squeeze
+             ▼              ▼
+       log_π_θ  (256,)   V_θ   (256,)
+             │
+             ▼
+  r_t   = exp(log_π_θ − log_π_old)   (256,)  ← importance ratio
+  Â     = advantages.flatten()        (256,)
+  R     = returns.flatten()           (256,)
+
+  L^CLIP = mean[ min(r_t·Â,  clip(r_t, 0.9, 1.1)·Â) ]   scalar
+  L^VF   = mean[ (V_θ − R)² ]                             scalar
+  L^H    = −mean[ entropy(logits) ]                        scalar
+  Loss   = −L^CLIP + 0.5·L^VF + ent_coef·L^H             scalar
+             │
+             ▼  backward() — BPTT through all 128 LSTM steps
+  Gradients flow through:
+    Linear heads  ←  LSTM weights (W_f,W_i,W_g,W_o, 128 steps)  ←  CNN
+             │
+             ▼  optimizer.step()  →  θ updated
+
+
+═══════════════════════════════════════════════════════════════════════════════
+  SUMMARY — counts per rollout iteration
+═══════════════════════════════════════════════════════════════════════════════
+
+  Rollout:              128 steps × 8 envs  =  1,024 transitions collected
+  Epochs:               4
+  Minibatches per epoch:                       4  (2 sequences each)
+  Gradient steps total:                        16
+  Transitions seen per epoch:               1,024
+  Transitions seen total:                   4,096  (each used 4×, then discarded)
+
+  CNN forward passes:
+    collection:      128 steps × 8 envs  =  1,024  (batch=8,   one step at a time)
+    optimization:    4 epochs × 4 mb     =     16  (batch=256, full seq in parallel)
+    total CNN calls: 1,024 + 16×256 frames =  5,120 frames per iteration
+
+  LSTM forward passes:
+    collection:      128 individual steps          (seq=1,   batch=8)
+    optimization:    4 epochs × 4 mb × 128 steps  (seq=128, batch=2) ← 16 full unrolls
+```
+
+### A.6 Standard PPO vs RecurrentPPO — what changes
+
+| Aspect | Standard PPO (v9) | RecurrentPPO (v10) |
+|---|---|---|
+| **Policy memory** | Frame stack (k=4 frames, fixed) | LSTM hidden state (learned, adaptive) |
+| **Forward pass** | Independent per observation | Sequential, stateful — h,c threaded |
+| **Buffer extras** | None | Per-step (h,c) for each env — ~2 MB |
+| **Minibatch structure** | Random shuffle of 1024 transitions | Ordered sequences of length 128 |
+| **Gradient flow** | Each obs independently | BPTT through 128 LSTM steps |
+| **Episode boundary** | No action needed | Zero h,c at episode_starts |
+| **Training cost** | O(batch_size) per update | O(batch_size × seq_len) per update |
+| **clip_fraction** | Typically 0.10–0.25 | Elevated ~0.35 (LSTM re-execution drift) |
+| **eval/std_return** | 0 (deterministic fixed-seed) | > 0 (sticky-action eval fix) |
