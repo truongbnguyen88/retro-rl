@@ -201,6 +201,22 @@ class EvalConfig(BaseModel):
     n_episodes: int = 5
     deterministic: bool = True
     record_video: bool = True
+    # Eval-only env stochasticity, independent of the training env's
+    # ``env.sticky_action_prob``. A deterministic policy in a deterministic
+    # save-state (Airstriker) produces byte-identical episodes regardless of
+    # seed, so std_return collapses to 0 and best-checkpoint selection becomes
+    # single-trajectory noise. Sticky actions (Machado et al. 2018) inject
+    # per-episode dynamics variance while keeping the policy deterministic, so
+    # eval measures robustness and std_return > 0. Default 0 preserves legacy
+    # behavior; set > 0 (e.g. 0.1) for runs where eval must be informative.
+    sticky_action_prob: float = 0.0
+
+    @field_validator("sticky_action_prob")
+    @classmethod
+    def _eval_sticky_prob(cls, v: float) -> float:
+        if not 0.0 <= v <= 1.0:
+            raise ValueError(f"eval.sticky_action_prob must be in [0, 1], got {v}")
+        return v
 
 
 class CheckpointConfig(BaseModel):

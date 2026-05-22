@@ -142,6 +142,7 @@ class EvalAndVideoCallback(BaseCallback):
         video_dir: Path | None = None,
         video_fps: int = 30,
         eval_seed: int | None = None,
+        deterministic: bool = True,
         verbose: int = 0,
     ) -> None:
         super().__init__(verbose=verbose)
@@ -152,13 +153,16 @@ class EvalAndVideoCallback(BaseCallback):
         self.eval_env_factory = eval_env_factory
         self.n_episodes = n_episodes
         self.every_steps = every_steps
+        self.deterministic = deterministic
         self.manager = manager
         self.video_dir = Path(video_dir) if video_dir is not None else None
         self.video_fps = video_fps
-        # Each episode resets with seed = eval_seed + ep_i. Gives different
-        # env RNG states per episode so std_return is non-zero for stochastic
-        # envs. For Airstriker (deterministic save-state), this only helps if
-        # sticky_action_prob > 0 or similar env-level noise is added.
+        # Each episode resets with seed = eval_seed + ep_i, giving a distinct
+        # env RNG stream per episode. For Airstriker (deterministic save-state)
+        # this only yields std_return > 0 when the eval env carries dynamics
+        # noise — see EvalConfig.sticky_action_prob, wired via the eval env
+        # factory. With sticky=0 and a deterministic policy, all episodes are
+        # identical and std_return == 0 (eval becomes single-trajectory).
         self.eval_seed = eval_seed
 
         self._eval_env: gym.Env | None = None
@@ -225,7 +229,7 @@ class EvalAndVideoCallback(BaseCallback):
                     obs,
                     state=lstm_states,
                     episode_start=episode_start,
-                    deterministic=True,
+                    deterministic=self.deterministic,
                 )
                 episode_start = np.zeros((1,), dtype=bool)
                 obs, reward, terminated, truncated, _ = self._eval_env.step(action)

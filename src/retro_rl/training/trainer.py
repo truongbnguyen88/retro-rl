@@ -131,6 +131,7 @@ def train(cfg: TrainConfig, resume_from: Path | None = None) -> Path:
             manager=manager,
             video_dir=video_dir,
             eval_seed=eval_seed,
+            deterministic=cfg.eval.deterministic,
         ),
     ]
     if cfg.ppo.ent_coef_final is not None:
@@ -207,11 +208,19 @@ def _build_vec_env(cfg: TrainConfig, vecnormalize_stats: Path | None = None):
 
 
 def _build_eval_env_factory(cfg: TrainConfig, eval_seed: int):
-    """Closure: (record_video: bool) -> single gym.Env for deterministic eval."""
+    """Closure: (record_video: bool) -> single gym.Env for eval.
+
+    The eval env overrides ``sticky_action_prob`` with
+    ``cfg.eval.sticky_action_prob`` (independent of the training env's value) so
+    a deterministic policy still sees per-episode dynamics variance and
+    ``eval/std_return`` is non-zero. With the default 0 the eval env is
+    byte-identical to the training env config.
+    """
+    eval_env_cfg = cfg.env.model_copy(update={"sticky_action_prob": cfg.eval.sticky_action_prob})
 
     def _factory(record_video: bool) -> gym.Env:
         return make_env(
-            cfg.env,
+            eval_env_cfg,
             seed=eval_seed,
             render_mode="rgb_array" if record_video else None,
         )

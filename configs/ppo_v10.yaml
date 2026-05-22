@@ -28,3 +28,13 @@ env_config: configs/env_v10.yaml
 
 algorithm: recurrent_ppo
 lstm_hidden_size: 256
+
+# Eval-only sticky actions: v9/v10 smoke runs both logged eval/std_return == 0
+# at every checkpoint — a deterministic policy in Airstriker's deterministic
+# save-state yields identical episodes, so "best" checkpoint selection was
+# single-trajectory noise. Sticky actions (Machado et al. 2018) inject
+# per-episode variance while keeping the policy deterministic, so std_return>0
+# and best-by-eval-return is meaningful over the 4M run. Deep-merged onto the
+# eval block inherited from ppo.yaml; deterministic stays true.
+eval:
+  sticky_action_prob: 0.1
