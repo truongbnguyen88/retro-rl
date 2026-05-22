@@ -126,6 +126,61 @@ frame). A single frame is not Markov: you cannot tell from one image whether a
 bullet is moving up or down. The wrapper stack exists to convert the raw
 emulator output into something closer to a Markov state.
 
+#### The discount factor γ in depth
+
+`γ ∈ [0, 1)` controls how much the agent values future reward relative to
+immediate reward. A reward `r` received `k` steps in the future is worth
+`γ^k · r` today. The objective the agent maximizes is the **discounted return**:
+
+```
+G_t = r_t + γ·r_{t+1} + γ²·r_{t+2} + ... = Σ_{k=0}^∞ γ^k · r_{t+k}
+```
+
+Two reasons γ < 1:
+1. **Mathematical:** for infinite-horizon problems, an undiscounted sum can
+   diverge. Discounting guarantees `G_t` is finite (geometric series).
+2. **Practical:** distant rewards are uncertain (the policy might die first,
+   the world might change). Discounting expresses "a bird in the hand."
+
+**Effective horizon.** The useful intuition is that γ defines a soft time
+horizon of roughly `1/(1−γ)` steps — beyond that, rewards are discounted into
+near-irrelevance:
+
+| γ | `1/(1−γ)` | Effective horizon |
+|---|---|---|
+| 0.9 | 10 | very short-sighted |
+| 0.99 (v9) | 100 | ~100 decision steps ahead |
+| 0.999 | 1000 | very far-sighted, hard to learn |
+
+At v9's `γ=0.99` and `action_repeat=8`, 100 decision steps ≈ 800 emulator
+frames ≈ **13 seconds** of game time. The agent optimizes over roughly a
+13-second horizon — long enough to value "dodge now to survive the next wave,"
+short enough that credit assignment stays tractable. Too high a γ and the
+credit-assignment problem (which of the last 1000 actions caused this reward?)
+becomes intractably noisy; too low and the agent can't plan past the immediate
+threat.
+
+#### Terminology you must keep straight
+
+These terms get conflated constantly. Pinning them down now prevents confusion
+throughout:
+
+| Term | Meaning | In retro-rl |
+|---|---|---|
+| **State** `s` | The true, complete description of the world (Markov) | The emulator's RAM — the agent never sees this directly |
+| **Observation** `o` | What the agent actually receives | The `(84, 84, 4)` frame stack |
+| **Action** `a` | The agent's decision | One of 9 movement combos (`Discrete(9)`) |
+| **Reward** `r` | Scalar signal for a single step | Shaped reward after clip, one number per decision |
+| **Return** `G` | Discounted sum of *future* rewards from a step | `Σ γ^k r_{t+k}` — what we maximize |
+| **Transition** | One `(o, a, r, o', done)` tuple | One row in the rollout buffer |
+| **Episode** | One play-through from reset to terminal/truncation | One life (with `end_on_life_lost=True`) |
+| **Trajectory** | The ordered sequence of transitions in an episode | `τ = (o₀,a₀,r₀, o₁,a₁,r₁, ...)` |
+| **Rollout** | A fixed-length batch of transitions collected for one update | 1024 transitions (8 envs × 128 steps) — may span several episodes |
+
+Because Airstriker is a POMDP, the literature's `V(s)` is really `V(o)` here —
+the value of the *observation*, since pixels are all the network has. We write
+`V(s)` loosely throughout, following convention.
+
 ### 1.2 The stable-retro library
 
 `stable-retro` is a fork of OpenAI Gym's Retro library that emulates classic
@@ -455,6 +510,39 @@ at 4500 outer steps (= 4500 × `action_repeat` emulator frames). This is a
 because the agent died. The distinction matters for advantage estimation
 (see §3.4).
 
+### 1.5.1 Timescales — the units that confuse everyone
+
+The pipeline operates at several nested timescales. "Step" means different
+things at different layers, which is a frequent source of confusion. Here is
+the exact unit ladder for v9:
+
+| Timescale | Duration | Relation | What happens |
+|---|---|---|---|
+| **Emulator frame** | 1/60 s ≈ 16.7 ms | base unit | One Genesis frame rendered; `AutoFireWrapper` decides the fire bit here |
+| **Decision step** (outer step) | 8 frames ≈ 133 ms | `= action_repeat` frames | One policy decision; `ActionRepeat` holds the action, sums reward, max-pools the last 2 frames |
+| **Fire pulse** | 12 frames ≈ 200 ms | `= auto_fire.period` frames | One bullet fired (~5 Hz), *independent* of decision step |
+| **Rollout segment** | 128 decision steps | `= n_steps` | One env's contribution to a rollout buffer |
+| **Episode** | ≤ 4500 decision steps | `≤ max_episode_steps` | One life, ends on death or time-limit truncation |
+| **Training iteration** | 1024 decision steps | `= n_envs × n_steps` | One rollout collection + one PPO update |
+
+Key facts to internalize:
+
+- **"num_timesteps" in SB3 = decision steps**, summed across all 8 envs. So
+  4M `total_timesteps` = 4M decision steps = 32M emulator frames ≈ 148 hours of
+  game time compressed into ~21 h wall-clock.
+- **The fire pulse (12 frames) and decision step (8 frames) are deliberately
+  decoupled.** `AutoFireWrapper` wraps the raw env, so it counts emulator
+  frames regardless of how `ActionRepeat` groups them. The agent never controls
+  firing; it only controls movement at the 7.5 Hz decision rate.
+- **Two reward components combine per decision step.** `ActionRepeat` sums the
+  *native* game reward over the 8 emulator frames. `RewardShapingWrapper` sits
+  *outside* `ActionRepeat`, so it fires once per decision step: it reads the
+  info dict from the final emulator frame, computes the shaped term from
+  deltas accumulated over the whole skip (e.g. total score gained, lives lost),
+  applies the `[-50, 10]` clip to *that shaped term*, and adds it to the summed
+  native reward. So the clip bounds the shaped component per decision step, not
+  per emulator frame.
+
 ### 1.6 Public entrypoints
 
 [`env/__init__.py`](../src/retro_rl/env/__init__.py) exports:
@@ -620,12 +708,14 @@ FEATURE_EXTRACTORS = {
     "impala": ImpalaCNN,
 }
 
-def policy_kwargs(features_dim: int, features_extractor: str) -> dict:
-    cls = FEATURE_EXTRACTORS[features_extractor]
+def policy_kwargs(features_dim=512, features_extractor="nature_cnn") -> dict:
+    extractor_cls = FEATURE_EXTRACTORS[features_extractor]
     return {
-        "features_extractor_class": cls,
+        "features_extractor_class": extractor_cls,
         "features_extractor_kwargs": {"features_dim": features_dim},
-        "net_arch": [dict(pi=[64, 64], vf=[64, 64])],
+        # normalize_images=False because both extractors do their own /255
+        # inside forward(); leaving it True would double-normalize.
+        "normalize_images": False,
     }
 ```
 
@@ -634,10 +724,25 @@ specifies (earn the abstraction when the second concrete thing exists). The
 validator in `TrainConfig` uses the registry as the source of valid names, so a
 typo in the YAML fails at config load time.
 
-`net_arch` controls the MLP heads: two 64-unit Tanh layers for each of policy
-(pi) and value (vf). Tanh is used for actor-critic heads (bounded activations
-= bounded policy gradient updates); ReLU is used in the backbone (unbounded
-outputs, standard for conv layers).
+**`normalize_images=False` is load-bearing.** SB3's default behavior for image
+observation spaces is to divide the input by 255 *inside the policy* before
+handing it to the feature extractor. But both `RetroCNN` and `ImpalaCNN` already
+do `observations.float() / 255.0` in their own `forward()`. Leaving SB3's
+default (`True`) would normalize twice — feeding the network values in
+`[0, 1/255]` instead of `[0, 1]`, crushing the input scale and crippling
+learning. Setting it `False` hands the extractor the raw uint8 tensor so its
+own `/255` is the only normalization.
+
+**What this helper does *not* set: the MLP head architecture.** The doc above
+omits `net_arch`, so SB3 falls back to its **default for actor-critic policies**:
+two 64-unit hidden layers for each of the policy head (`pi`) and value head
+(`vf`), i.e. `dict(pi=[64, 64], vf=[64, 64])`, with **Tanh** activations (SB3's
+default `activation_fn`). So the heads in the §2.1 diagram are SB3 defaults, not
+something we configure. The contrast worth internalizing: the **backbone uses
+ReLU** (our extractor code, standard for conv stacks — unbounded positive
+activations), while the **heads use Tanh** (SB3 default for actor-critic MLPs —
+bounded `[-1, 1]` activations keep the pre-softmax logits and the value output
+in a stable range, which empirically stabilizes policy-gradient updates).
 
 ### 2.5 PPO factory
 
@@ -718,6 +823,36 @@ Why on-policy? On-policy methods are generally more stable for actor-critic
 policies because the gradient estimates use data from the same distribution
 the policy currently defines. Off-policy methods (DQN, SAC) reuse old data
 but require extra machinery (replay buffers, target networks) to stay stable.
+
+#### The rollout buffer — what one iteration physically stores
+
+Each PPO iteration fills a fixed-size buffer of shape `(n_steps, n_envs, ...)` =
+`(128, 8, ...)`, flattened to **1024 transitions**. Per transition, SB3 stores:
+
+| Field | Shape (per transition) | dtype | Recorded when | Used for |
+|---|---|---|---|---|
+| `observations` | `(4, 84, 84)` | uint8 | rollout (forward pass input) | re-forward during optimization |
+| `actions` | `()` scalar | int64 | rollout (sampled) | recompute `log π_θ(a)` |
+| `rewards` | `()` | float32 | rollout (env step) | GAE |
+| `episode_starts` | `()` | bool | rollout | GAE terminal handling |
+| `values` `V(s_t)` | `()` | float32 | rollout (critic forward) | GAE (the `V` in `δ_t`) |
+| `log_probs` `log π_old` | `()` | float32 | rollout (actor forward) | importance ratio denominator |
+| `advantages` `Â_t` | `()` | float32 | **after** rollout (GAE) | `L^CLIP` weighting |
+| `returns` `R_t` | `()` | float32 | **after** rollout (GAE) | `L^VF` regression target |
+
+Two practical points:
+
+- **Observations dominate memory.** `1024 × 4 × 84 × 84` uint8 ≈ **29 MB** per
+  iteration; everything else is a handful of float32 scalars (~24 KB total).
+  Keeping obs in uint8 (normalizing to float only inside the CNN forward) is a
+  4× memory win that matters at this buffer size.
+- **`values` and `log_probs` are the "old policy" snapshot.** They are recorded
+  *once* during rollout with the data-collecting weights `θ_old` and then held
+  fixed through all 4 optimization epochs. The optimization recomputes fresh
+  `V_θ(s)` and `log π_θ(a)` each minibatch and compares against these frozen
+  references — that comparison *is* the importance ratio (§3.4) and the value
+  target. This is the concrete mechanism behind "on-policy": the buffer is only
+  valid while `θ` stays close to `θ_old`, which the clip enforces.
 
 ### 3.2 VecEnv construction
 
@@ -879,6 +1014,37 @@ doesn't stray too far from the data-generating policy, keeping the importance
 sampling approximation valid. This is the key insight of PPO — it approximates
 TRPO's hard KL constraint with a cheap, differentiable clip.
 
+**Worked clip example.** Take one transition with a strongly positive advantage,
+`Â_t = +4.834` (the `Â₀` from the GAE example above), and `ε = 0.1`. Watch what
+the objective does as the policy drifts during the 4 optimization epochs:
+
+| Update state | `r_t` | `r_t·Â_t` | `clip(r_t,0.9,1.1)·Â_t` | `L^CLIP = min(...)` | Gradient? |
+|---|---|---|---|---|---|
+| Before any update | 1.00 | 4.834 | 4.834 | **4.834** | yes — push `r` up |
+| Action got more likely | 1.05 | 5.076 | 5.076 | **5.076** | yes — still inside band |
+| At the clip edge | 1.10 | 5.317 | 5.317 | **5.317** | yes — at the cap |
+| Pushed past the cap | 1.30 | 6.284 | 5.317 | **5.317** | **no** — clipped branch wins, `∂/∂r = 0` |
+
+Once `r_t` exceeds `1+ε = 1.1`, the `min` selects the clipped term `1.1·Â_t`,
+which is **constant in `r_t`** — its gradient is zero. The optimizer gets no
+further reward for making this already-favored action even more likely. That is
+the trust region: a good action is reinforced, but only up to a 10% probability-
+ratio change per rollout, after which the gradient flatlines and the update
+stops. The symmetric thing happens for `Â_t < 0` at the `1−ε = 0.9` floor.
+
+**Why `min` and not just clip?** Note the table only shows the `Â>0` side. The
+`min` is what makes the objective *pessimistic* and is subtle: for `Â<0`, an
+*un*clipped large `r` (the policy accidentally made a bad action much more
+likely) is **not** clipped away — the `min` keeps the larger-magnitude negative
+term so the objective still penalizes it. The clip only removes the *incentive
+to over-optimize in the favorable direction*; it never hides a mistake that
+needs correcting. This asymmetry is the entire safety property of PPO.
+
+**The `clip_fraction` diagnostic** in TensorBoard is the fraction of transitions
+where the clip was active (`|r−1| > ε`) in a given update. Healthy PPO sits
+around 0.1–0.3; near 0 means updates are too timid (raise LR or ε), near 0.5+
+means the policy is trying to move violently every update (lower LR).
+
 #### The full PPO loss
 
 ```
@@ -966,6 +1132,83 @@ episodes from dominating the gradient.
 regression target for the value head (`L^VF = MSE(V_θ(s_t), R_t)`). GAE and
 the value head are coupled: the critic's predictions feed into GAE, and GAE's
 returns train the critic.
+
+#### Worked GAE example — 4-step backward recursion
+
+Formulas are easy to nod along to and hard to actually understand. Here is the
+full computation over a tiny 4-step rollout with concrete numbers. Use
+`γ = 0.99`, `λ = 0.95`, so `γλ = 0.9405`.
+
+Suppose the agent took 4 decision steps and then the episode **truncated**
+(hit the time limit — did *not* die), with these recorded values:
+
+| t | reward `r_t` | critic `V(s_t)` | next value `V(s_{t+1})` |
+|---|---|---|---|
+| 0 | 1.0 | 5.0 | 5.5 |
+| 1 | 1.0 | 5.5 | 6.0 |
+| 2 | 1.0 | 6.0 | 6.2 |
+| 3 | 1.0 | 6.2 | 6.5 ← bootstrap (truncation, not death) |
+
+**Step 1 — compute the one-step TD errors** `δ_t = r_t + γV(s_{t+1}) − V(s_t)`:
+
+```
+δ₀ = 1.0 + 0.99·5.5 − 5.0 = 1.0 + 5.445 − 5.0 = 1.445
+δ₁ = 1.0 + 0.99·6.0 − 5.5 = 1.0 + 5.940 − 5.5 = 1.440
+δ₂ = 1.0 + 0.99·6.2 − 6.0 = 1.0 + 6.138 − 6.0 = 1.138
+δ₃ = 1.0 + 0.99·6.5 − 6.2 = 1.0 + 6.435 − 6.2 = 1.235
+```
+
+Each `δ_t` says "this step's reward + discounted next-value was `δ` higher than
+the critic predicted" — a local surprise signal.
+
+**Step 2 — accumulate advantages backward** `Â_t = δ_t + γλ·Â_{t+1}`,
+starting from the last step (`Â₄ = 0` past the bootstrap):
+
+```
+Â₃ = δ₃ + 0.9405·0     = 1.235
+Â₂ = δ₂ + 0.9405·Â₃    = 1.138 + 0.9405·1.235 = 1.138 + 1.162 = 2.300
+Â₁ = δ₁ + 0.9405·Â₂    = 1.440 + 0.9405·2.300 = 1.440 + 2.163 = 3.603
+Â₀ = δ₀ + 0.9405·Â₁    = 1.445 + 0.9405·3.603 = 1.445 + 3.389 = 4.834
+```
+
+**Step 3 — value targets** `R_t = Â_t + V(s_t)`:
+
+```
+R₀ = 4.834 + 5.0 = 9.834
+R₁ = 3.603 + 5.5 = 9.103
+R₂ = 2.300 + 6.0 = 8.300
+R₃ = 1.235 + 6.2 = 7.435
+```
+
+What to take away:
+
+- **Advantages grow toward the start** (4.834 at t=0 vs 1.235 at t=3) because
+  earlier steps "see" more discounted future surprise — the recursion folds all
+  later `δ`s into `Â₀`. This is GAE blending the n-step estimators.
+- **Each `Â_t` mixes near and far signal**, weighted by `(γλ)^l`. With
+  `γλ = 0.94`, a surprise 10 steps away contributes `0.94^10 ≈ 0.54×` — still
+  meaningful; at `λ=0` it would contribute 0× (pure one-step), at `λ=1` it
+  would contribute `0.99^10 ≈ 0.90×` (near-Monte-Carlo).
+- **The `R_t` values are what the critic regresses toward.** If the critic were
+  perfect, every `δ_t` would be ≈ 0 and every `Â_t` would be ≈ 0 — there would
+  be no surprise and no gradient. Advantages are literally a measure of how
+  *wrong* the current value function is.
+
+**The terminal-vs-truncation branch in action.** The example bootstrapped at
+t=3 (`V(s₄) = 6.5`) because the episode *truncated*. Had the agent **died** at
+t=3 instead, there would be no future, so:
+
+```
+δ₃ = r₃ − V(s₃) = 1.0 − 6.2 = −5.2     (no +γV(s₄) term)
+Â₃ = −5.2
+```
+
+A death turns the last advantage sharply negative (the critic expected 6.2 of
+future value; the agent got nothing), correctly punishing whatever action led
+there. Bootstrapping through a death by mistake would instead credit the agent
+with 6.5 of phantom future value — a silent, systematic bias. This is why the
+`terminated` vs `truncated` distinction from the env layer (§1.5 [9]) propagates
+all the way into the math here.
 
 ### 3.6 Callbacks
 
@@ -1081,6 +1324,39 @@ its path. This means any checkpoint can be exactly reproduced from:
 1. The checkpoint `.zip` (weights)
 2. The `config_snapshot.json` (hyperparameters)
 3. The random seed (also in the snapshot)
+
+### 3.9 Reading the TensorBoard scalars — a diagnostic glossary
+
+Training health is read entirely from the TB scalars SB3 and our callbacks
+log. Most of these are referenced throughout this doc and the decisions log;
+here is the single place that defines each one, its formula, healthy range,
+and what an unhealthy value means. **This table is the operator's instrument
+panel** — knowing how to read it is most of what separates "debugging RL" from
+"randomly changing hyperparameters."
+
+| Scalar | What it is | Healthy | Unhealthy → likely cause |
+|---|---|---|---|
+| `rollout/ep_rew_mean` | Mean **raw** (un-normalized) episode reward across the 8 train envs. Logged by `VecMonitor` *inside* `VecNormalize`. | Rising, then plateauing | Flat from step 0 → reward not flowing (wrapper/shaping bug); collapsing → policy de-committing |
+| `rollout/ep_len_mean` | Mean episode length (decision steps). Proxy for survival. | Rising (agent survives longer) | Stuck low → agent dies instantly; equal to `max_episode_steps` → agent learned to stall/hide |
+| `eval/mean_return` | **The headline metric.** Mean return of N deterministic eval episodes on a bare env. | Monotone-ish rise | Diverges from `ep_rew_mean` → train/eval mismatch (e.g. stochastic-only policy, the v2 bug) |
+| `eval/std_return` | Spread across eval episodes. | >0 if env is stochastic | Exactly 0 for all evals → deterministic save-state + no env noise (expected for Airstriker; not a bug) |
+| `eval/mean_length` | Mean eval episode length. | Tracks survival | — |
+| `train/explained_variance` (EV) | `1 − Var(R_t − V(s_t)) / Var(R_t)`. How much of the return variance the critic explains. **1 = perfect critic, 0 = no better than predicting the mean, <0 = worse than the mean.** | → 0.8–0.99 | Pinned at 0 → value head not fitting (return scale too large — the v8→v9 VecNormalize fix); negative → critic diverging (lower LR) |
+| `train/value_loss` (`L^VF`) | `MSE(V_θ(s), R_t)`. Critic regression error. | Small, stable (v9: ~0.1) | Hundreds and rising → ill-conditioned value targets (the symptom VecNormalize cured: ~800 → ~0.1) |
+| `train/approx_kl` | `E[log π_old − log π_new]`, an estimate of how far the policy moved this update. | ~0.01–0.03 | → 0 → policy frozen (advantages vanished and/or entropy annealed away — the v5/v7 late-run collapse); large (>0.1) → updates too aggressive |
+| `train/clip_fraction` | Fraction of transitions where the PPO clip was active (`|r−1| > ε`). | ~0.1–0.3 | ~0 → updates too timid (raise LR or ε); >0.5 → policy lurching every update (lower LR) |
+| `train/policy_gradient_loss` (`−L^CLIP`) | The clipped surrogate objective (negated, since SB3 minimizes). | Small-magnitude, noisy around 0 | Steadily growing magnitude → instability |
+| `train/entropy_loss` (`−H[π]`) | Negative policy entropy. For `Discrete(9)`, max entropy is `ln(9) ≈ 2.197` (uniform); 0 means a one-hot deterministic policy. | Starts near `−2.2` (exploratory), rises toward 0 as the policy commits | Stuck near `−2.2` late → policy never commits (ent_coef too high); crashes to 0 early → premature collapse (ent_coef too low) |
+| `train/ent_coef` | The current entropy coefficient `c₂`, logged by our `EntCoefLinearSchedule`. | Linear ramp 0.02 → 0.001 over 4M steps | Audited against the de-commitment failure mode — if the policy freezes while this is already tiny, the schedule annealed too fast |
+| `train/learning_rate` | Current LR (linear-annealed by our schedule). | Linear ramp 1e-4 → 0 | — |
+
+**How these chain together (the v9 causal story in one read):**
+`value_loss` ↓ and EV ↑ (good critic) → trustworthy `δ_t` → trustworthy
+advantages → `approx_kl` and `clip_fraction` stay in healthy bands (real,
+bounded policy updates) → `eval/mean_return` climbs. When the chain breaks, it
+almost always breaks at the **critic** first (EV / value_loss), which is exactly
+why the v9 breakthrough was a reward-*scale* fix (VecNormalize), not a policy
+change. Read the panel left-to-right in that causal order when triaging.
 
 ---
 
