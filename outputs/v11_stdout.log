@@ -1,0 +1,49 @@
+[05/23/26 18:24:46] INFO     run_name=ppo_airstriker_v11 seed=42
+                             total_timesteps=6000000 n_envs=8 resume=None
+2026-05-23 18:24:48.344 Python[84374:33540412] ApplePersistenceIgnoreState: Existing state will not be touched. New state will be written to /var/folders/56/jqj8nyt12sxbm6rgrnlf06y00000gn/T/org.python.python.savedState
+2026-05-23 18:24:48.347 Python[84375:33540414] ApplePersistenceIgnoreState: Existing state will not be touched. New state will be written to /var/folders/56/jqj8nyt12sxbm6rgrnlf06y00000gn/T/org.python.python.savedState
+2026-05-23 18:24:48.347 Python[84373:33540409] ApplePersistenceIgnoreState: Existing state will not be touched. New state will be written to /var/folders/56/jqj8nyt12sxbm6rgrnlf06y00000gn/T/org.python.python.savedState
+2026-05-23 18:24:48.347 Python[84369:33540395] ApplePersistenceIgnoreState: Existing state will not be touched. New state will be written to /var/folders/56/jqj8nyt12sxbm6rgrnlf06y00000gn/T/org.python.python.savedState
+2026-05-23 18:24:48.347 Python[84372:33540406] ApplePersistenceIgnoreState: Existing state will not be touched. New state will be written to /var/folders/56/jqj8nyt12sxbm6rgrnlf06y00000gn/T/org.python.python.savedState
+2026-05-23 18:24:48.347 Python[84371:33540403] ApplePersistenceIgnoreState: Existing state will not be touched. New state will be written to /var/folders/56/jqj8nyt12sxbm6rgrnlf06y00000gn/T/org.python.python.savedState
+2026-05-23 18:24:48.347 Python[84370:33540398] ApplePersistenceIgnoreState: Existing state will not be touched. New state will be written to /var/folders/56/jqj8nyt12sxbm6rgrnlf06y00000gn/T/org.python.python.savedState
+2026-05-23 18:24:48.347 Python[84376:33540415] ApplePersistenceIgnoreState: Existing state will not be touched. New state will be written to /var/folders/56/jqj8nyt12sxbm6rgrnlf06y00000gn/T/org.python.python.savedState
+[05/23/26 18:24:48] INFO     VecNormalize active: norm_reward=True
+                             norm_obs=False gamma=0.99
+                    INFO     algorithm=recurrent_ppo features_extractor=impala
+                             features_dim=256
+Using cpu device
+Wrapping the env in a VecTransposeImage.
+[05/23/26 18:24:49] INFO     ent_coef schedule: linear 0.02 → 0.001 over 6000000
+                             steps
+Logging to outputs/tensorboard/ppo_airstriker_v11_1
+reward_shaping: info key 'x_pos' not present; corresponding term will be zero. Check the stable-retro integration's data.json.
+reward_shaping: info key 'x_pos' not present; corresponding term will be zero. Check the stable-retro integration's data.json.
+reward_shaping: info key 'x_pos' not present; corresponding term will be zero. Check the stable-retro integration's data.json.
+reward_shaping: info key 'x_pos' not present; corresponding term will be zero. Check the stable-retro integration's data.json.
+reward_shaping: info key 'x_pos' not present; corresponding term will be zero. Check the stable-retro integration's data.json.
+reward_shaping: info key 'x_pos' not present; corresponding term will be zero. Check the stable-retro integration's data.json.
+reward_shaping: info key 'x_pos' not present; corresponding term will be zero. Check the stable-retro integration's data.json.
+reward_shaping: info key 'x_pos' not present; corresponding term will be zero. Check the stable-retro integration's data.json.
+-------------------------------------------
+| rollout/                |               |
+|    ep_len_mean          | 205           |
+|    ep_rew_mean          | 236           |
+| time/                   |               |
+|    fps                  | 57            |
+|    iterations           | 10            |
+|    time_elapsed         | 177           |
+|    total_timesteps      | 10240         |
+| train/                  |               |
+|    approx_kl            | 2.0927459e-05 |
+|    clip_fraction        | 0             |
+|    clip_range           | 0.0998        |
+|    ent_coef             | 0.02          |
+|    entropy_loss         | -2.2          |
+|    explained_variance   | 0.428         |
+|    learning_rate        | 7.99e-05      |
+|    loss                 | 0.0126        |
+|    n_updates            | 18            |
+|    policy_gradient_loss | -0.000156     |
+|    value_loss           | 0.188         |
+-------------------------------------------

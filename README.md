@@ -1,7 +1,6 @@
 # retro-rl
-(Renamed from contra-rl)
 
-Reinforcement learning agent for [stable-retro](https://github.com/Farama-Foundation/stable-retro) games. PPO + CNN policy with a FastAPI backend and a Streamlit dashboard. Default target: **Airstriker (Genesis)** — a freely-distributable homebrew shooter that ships with stable-retro, so no separate ROM step is needed.
+Reinforcement learning agent for [stable-retro](https://github.com/Farama-Foundation/stable-retro) games. PPO / RecurrentPPO + CNN policy with a FastAPI backend and a Streamlit dashboard. Default target: **Airstriker (Genesis)** — a freely-distributable homebrew shooter that ships with stable-retro, so no separate ROM step is needed.
 
 > **Pointing at a different game?** The env layer is config-driven — swap `configs/env.yaml`'s `game`, `state`, and `info_keys` and everything downstream (wrappers, CNN, PPO) works unchanged. ROM legality is the user's responsibility.
 
@@ -49,13 +48,20 @@ See [CLAUDE.md](CLAUDE.md) for the full module map and dependency rules. The sho
 
 ## Status
 
-See [TASKS.md](TASKS.md) for milestone tracking. **Milestones 1–7 complete** (env layer, models, agents, trainer, evaluator, FastAPI backend, Streamlit frontend, docs + CI + pre-commit). Remaining work is experimental training iteration (v8 complete — best eval return 4271; v9 running — IMPALA + action_repeat=8 + VecNormalize).
+See [TASKS.md](TASKS.md) for milestone tracking. **Milestones 1–7 complete** (env layer, models, agents, trainer, evaluator, FastAPI backend, Streamlit frontend, docs + CI + pre-commit). Remaining work is experimental training iteration.
+
+| Run | Algorithm | Best return | Status |
+|-----|-----------|-------------|--------|
+| v8 | PPO + RetroCNN | 4271 @ 3.3M | ✅ complete |
+| v9 | PPO + IMPALA ResNet + VecNormalize | **7168 @ 2.7M** | ✅ complete |
+| v10 | RecurrentPPO + LSTM + IMPALA, frame_stack=1 | 1993 @ 4M | ❌ retired (cold-start blindness + clip drift) |
+| v11 | RecurrentPPO + LSTM + IMPALA, frame_stack=4 | 838 @ 500K smoke | 🔄 **running** (6M steps, ETA ~37 h) |
 
 ## Training notes (Airstriker)
 
-For a from-scratch walkthrough of the current (v9) training pipeline — observation inputs, the IMPALA ResNet backbone, the PPO learning loop, and GAE — see [docs/v9_procedure_pipeline.md](docs/v9_procedure_pipeline.md).
+For a from-scratch walkthrough of the v9 training pipeline — observation inputs, the IMPALA ResNet backbone, the PPO learning loop, and GAE — see [docs/v9_procedure_pipeline.md](docs/v9_procedure_pipeline.md).
 
-We iterated the action space, reward shaping, optimiser regularisation, and the fire wrapper across many runs before reaching a stable setup. Each iteration's diagnosis is preserved in the TASKS.md decisions log; the short version:
+We iterated the action space, reward shaping, optimiser regularisation, fire wrapper, and now recurrent architecture across many runs before reaching the current setup. Each iteration's diagnosis is in the TASKS.md decisions log; the short version:
 
 | Version | Problem | Fix |
 |---------|---------|-----|
@@ -67,7 +73,9 @@ We iterated the action space, reward shaping, optimiser regularisation, and the 
 | **v6** | Constant `ent_coef=0.02` against Discrete(9) max entropy `ln(9) ≈ 2.197` kept the policy near-uniform once advantages shrank; eval return peaked at 244 (1.4M) then *regressed* to 214 by 2M with `approx_kl → 0` | Linear `ent_coef` schedule 0.02 → 0.001 over total_timesteps via new [`EntCoefLinearSchedule`](src/retro_rl/training/callbacks.py). Mean rose to 222, peak to 275 over 1.6M, but still ceilinged because v5's tap-fire was actually *too fast* |
 | **v7** | **Bullet-array saturation**: AutoFire at period=4 (15 Hz) jammed Airstriker's player-bullet sprite slots within ~0.6s of each life. Game silently dropped B for the remaining 2-5s, so v5/v6 training data only ever covered the first ~5s of Level 1 | Drop AutoFire to `period=24` (2.5 Hz, ~25 bullets per life). Slot array never saturates → fire is visibly active end-to-end → policy can train on deeper level coverage. Carries v6's entropy schedule. Peak eval return **1248** @ 1.5M, episode length 1820 (+3.3×) |
 | **v8** | v7 confirmed the saturation fix but late-run `approx_kl → 0` at 2M suggested the entropy schedule annealed too fast over 2M; agent still under-prioritised survival | `period=18` (3.33 Hz), survival reward tripled (`survival_bonus` 0.01→0.03) + life-loss penalty doubled (−10→−20), `total_timesteps=4M` so `ent_coef` anneals at half the rate. Best eval return **4271** @ 3.3M (+3.4× over v7) |
-| **v9** *(running)* | v8 replay shows 2–3-frame action "shaking" (LEFT↔RIGHT logit oscillation) and a possible representational ceiling from the Nature-CNN | Bundles three structural changes — `action_repeat` 4→8 (7.5 Hz decisions), Nature-CNN → **IMPALA ResNet** ([`models/impala.py`](src/retro_rl/models/impala.py)), `auto_fire.period` 18→12 (5 Hz) — plus two stability fixes a 3-rung 500K smoke ladder surfaced: `learning_rate` 2.5e-4→1e-4 (deeper net + AR=8 return targets diverged the value head at v8's LR) and **`normalize_reward: true`** (SB3 VecNormalize, reward only). VecNorm was decisive: explained_variance 0.4→0.9, value_loss ~800→~0.1, smoke eval return @500K ~245→2608. Configs: [`ppo_v9.yaml`](configs/ppo_v9.yaml) + [`env_v9.yaml`](configs/env_v9.yaml) |
+| **v9** | v8 replay shows 2–3-frame action "shaking" (LEFT↔RIGHT logit oscillation) and a possible representational ceiling from the Nature-CNN | Bundles three structural changes — `action_repeat` 4→8 (7.5 Hz decisions), Nature-CNN → **IMPALA ResNet** ([`models/impala.py`](src/retro_rl/models/impala.py)), `auto_fire.period` 18→12 (5 Hz) — plus two stability fixes a 3-rung 500K smoke ladder surfaced: `learning_rate` 2.5e-4→1e-4 and **`normalize_reward: true`** (SB3 VecNormalize, reward only). VecNorm was decisive: EV 0.4→0.9, value_loss ~800→~0.1, smoke eval return @500K ~245→2608. Best eval return **7168 @ 2.7M** (+1.68× over v8). Configs: [`ppo_v9.yaml`](configs/ppo_v9.yaml) + [`env_v9.yaml`](configs/env_v9.yaml) |
+| **v10** *(retired)* | Hypothesis: "LSTM owns all temporal memory, frame_stack=1 is sufficient." RecurrentPPO + LSTM(256) + IMPALA + `frame_stack=1`, 4M steps | **Three failure modes** all confirmed: (1) `frame_stack=1` cold-start blindness — `h=0,c=0` at episode reset means single-frame obs contains no velocity; agent flies blind for first several steps (mean_length stuck at 555). (2) `clip_fraction=0.363` LSTM re-execution drift stuck since 1.2M. (3) Stochastic/deterministic policy gap (rollout 3311 vs eval 1993). Final best return: 1993 — significantly below v9 |
+| **v11** *(running)* | v10's failure modes: cold-start blindness + LSTM drift | `frame_stack 1→4` (fast motion handled by stack; LSTM handles slow spawn cycles — complementary timescales), `n_epochs 4→2` (halves LSTM re-execution drift per rollout), `lr 1e-4→8e-5`, `total_timesteps 4M→6M`. Smoke (500K) confirmed all fixes: clip_fraction 0.04–0.12, EV 0.83–0.93, return monotonic 523→838. Full 6M run in progress. Configs: [`ppo_v11.yaml`](configs/ppo_v11.yaml) + [`env_v11.yaml`](configs/env_v11.yaml) |
 
 The takeaways for future retro-shooter integrations:
 
@@ -75,3 +83,5 @@ The takeaways for future retro-shooter integrations:
 2. **Many retro shooters cap on-screen bullets with a sprite array, and saturating it makes the game silently ignore further fire input.** Run [`scripts/diagnose_fire_rate_vs_state.py`](scripts/diagnose_fire_rate_vs_state.py) to sweep tap rates and pick one that doesn't saturate.
 3. **Validate fire-mechanic fixes by extracting individual eval-video frames** ([`scripts/diagnose_video_kill_frames.py`](scripts/diagnose_video_kill_frames.py)) and confirming bullets are visibly active throughout each life — not just at the start. Visible-bullet-density is more diagnostic than the score curve, especially on the first checkpoint.
 4. **A deeper net or a higher `action_repeat` can stall the value function via return-target *scale*, not learning rate.** v9's IMPALA + `action_repeat=8` produced large, high-variance per-step rewards; the value head pinned at `explained_variance ≈ 0` (LR too high) and, once the LR was lowered, ceilinged at ~0.4 with `value_loss ≈ 800`. Lowering LR further would only learn slower. The fix was reward normalization (`VecNormalize`, `norm_reward=True`, `norm_obs=False`) — rescaling returns to ~unit variance made the regression well-conditioned (EV→0.9, `value_loss`→~0.1) and the cleaner value baseline unblocked policy learning. Eval stays on a bare env reporting raw returns, so the metric remains comparable; the running stats are checkpointed as a `.pkl` sidecar for resume.
+5. **`frame_stack` and LSTM are not redundant — they operate at different timescales.** v10 tested the "LSTM owns all memory" hypothesis by setting `frame_stack=1`. The LSTM's `h=0,c=0` at episode reset provides zero velocity context; a single grayscale frame contains no motion information. The result was cold-start blindness every life (mean_length 555 vs v9's 4500). v11's fix: restore `frame_stack=4` for fast motion (4 frames ≈ 533ms window) and let the LSTM handle slow temporal patterns (spawn cycles, threat timing). For games with rapid relative motion between objects, frame stacking is necessary input preprocessing, not a redundant memory mechanism.
+6. **RecurrentPPO with `n_epochs > 2` accumulates LSTM re-execution drift.** Each optimization epoch re-runs the LSTM with updated weights, widening the gap between the current policy π_θ and the rollout policy π_θ_old used to compute importance weights. At `n_epochs=4`, v10's `clip_fraction` locked at 0.363 from 1.2M to 4M steps — the oscillation never resolved. Halving to `n_epochs=2` (v11) immediately brought clip_fraction into 0.04–0.12 range. For recurrent policies, treat `n_epochs=2` as the default and only increase if clip_fraction is consistently low.
