@@ -1,0 +1,42 @@
+# v11 training config — LSTM + frame_stack hybrid.
+# Inherits configs/ppo_v10.yaml; addresses v10's three diagnosed failure modes.
+#
+# v10 mid-run diagnosis (@ 2.8M steps):
+#   - eval/mean_return=1993 (vs v9's 7028) — survival collapsed (mean_length=555)
+#   - clip_fraction=0.363 stuck elevated since 1.2M — LSTM re-execution drift
+#   - rollout/eval gap 3311 vs 1993 — argmax policy worse than stochastic
+#   - root cause: frame_stack=1 cold-start blindness + n_epochs=4 LSTM drift
+#
+# v11 changes vs v10:
+#   1. frame_stack 1 → 4  (configs/env_v11.yaml)
+#      Frame stack handles fast motion (533ms window); LSTM handles slow patterns
+#      (spawn cycles). Complementary timescales, not redundant memory.
+#   2. n_epochs 4 → 2
+#      RecurrentPPO's LSTM re-execution drift accumulates per epoch — each
+#      optimization pass re-runs the LSTM with updated weights, widening the
+#      gap between π_θ and π_θ_old. Halving epochs halves the drift per rollout,
+#      targeting clip_fraction 0.15-0.25 (v10 was stuck at 0.35+).
+#   3. learning_rate 1e-4 → 5e-5
+#      LSTM policies require more conservative updates than stateless CNN
+#      policies due to the compounding effect of hidden-state drift.
+#   4. total_timesteps 4M → 6M
+#      LSTM learning curve is inherently slower; extra budget compensates.
+#
+# Unchanged from v10: RecurrentPPO, LSTM(hidden=256), IMPALA ResNet
+# (features_dim=256), VecNormalize, ent_coef schedule 0.02→0.001,
+# n_envs=8, n_steps=128, sticky_action eval.
+#
+# NOTE: validate with configs/ppo_v11_smoke.yaml (500K) before the full 6M run.
+# Key smoke checks: clip_fraction < 0.25, explained_variance > 0.85,
+# eval/mean_length > v10 smoke baseline.
+
+extends: configs/ppo_v10.yaml
+
+run_name: ppo_airstriker_v11
+env_config: configs/env_v11.yaml
+
+ppo:
+  n_epochs: 2
+  learning_rate: 5.0e-5
+
+total_timesteps: 6000000

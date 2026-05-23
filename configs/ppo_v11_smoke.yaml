@@ -1,0 +1,21 @@
+# v11 smoke test — 500K-step validation before the full 6M run.
+# Inherits ppo_v11.yaml; only shortens the run and renames it.
+#
+# What to check at 500K (eval every 100K → 5 evals):
+#   - no crash; RecurrentPPO + frame_stack=4 + IMPALA + VecNormalize all run
+#     end to end with the new n_epochs=2 / lr=5e-5 settings;
+#   - clip_fraction < 0.25  (v10 was stuck at 0.35+ — primary health gate);
+#   - explained_variance > 0.85  (value head fitting, as v9 reached ~0.9 @ 500K);
+#   - eval/mean_return trending up and above v10 smoke baseline;
+#   - eval/mean_length > v10 smoke (frame_stack=4 should restore early survival);
+#   - report real fps (frame_stack=4 adds 4x CNN input channels — confirm
+#     throughput is acceptable before committing 6M steps).
+#
+# GO criteria (all must hold):   clip_fraction < 0.25,  EV > 0.85
+# ABORT / re-tune criteria:      clip_fraction > 0.30   → lower lr further
+#                                 EV < 0.70              → check VecNormalize
+
+extends: configs/ppo_v11.yaml
+
+run_name: ppo_airstriker_v11_smoke
+total_timesteps: 500000

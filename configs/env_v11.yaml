@@ -1,0 +1,20 @@
+# v11 environment config — inherits env_v10.yaml and restores frame_stack=4.
+#
+# v10 diagnosis: frame_stack=1 caused LSTM cold-start blindness — h=0,c=0 at
+# episode reset means the agent has zero velocity context for the first several
+# decision steps. A single 84x84 grayscale frame contains no motion information;
+# the LSTM must accumulate temporal context from scratch on every new life.
+#
+# v11 hypothesis: frame_stack and LSTM operate at different timescales and are
+# complementary, not redundant:
+#   - frame_stack=4 handles fast motion context (4 frames x 133ms = 533ms)
+#     and gives the LSTM meaningful velocity/direction input from step 0.
+#   - LSTM handles slow temporal patterns (spawn cycles, threat timing)
+#     that exceed the frame-stack window.
+#
+# All other env settings (action_repeat=8, auto_fire.period=12, reward
+# shaping) unchanged from v10/v9.
+
+extends: configs/env_v10.yaml
+
+frame_stack: 4

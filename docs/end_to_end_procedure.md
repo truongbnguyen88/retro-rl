@@ -15,7 +15,7 @@ the code implements it. Milestones 5–6 document the service and UI layers.
 5. [Milestone 4 — Evaluation](#milestone-4--evaluation)
 6. [Milestone 5 — Backend (FastAPI)](#milestone-5--backend-fastapi)
 7. [Milestone 6 — Frontend (Streamlit)](#milestone-6--frontend-streamlit)
-8. [Appendix: LSTM and RecurrentPPO (v10)](#appendix-lstm-and-recurrentppo-v10)
+8. [Appendix: v10 — RecurrentPPO + LSTM (discontinued)](#appendix-v10--recurrentppo--lstm-discontinued)
 
 ---
 
@@ -1933,7 +1933,39 @@ Streamlit frontend pulls from backend API → Training, Play, Compare pages
 
 ---
 
-## Appendix: LSTM and RecurrentPPO (v10)
+## Appendix: v10 — RecurrentPPO + LSTM (discontinued)
+
+**Result: did not work well. Run stopped at 2.8M / 4M steps.**
+
+v10 replaced PPO with `sb3_contrib.RecurrentPPO` (LSTM hidden=256) and dropped
+`frame_stack` from 4 to 1, on the hypothesis that the LSTM hidden state should
+own all temporal memory. At 2.8M steps: `eval/mean_return=1993` vs v9's 7028,
+`eval/mean_length=555` vs v9's 4500, `clip_fraction=0.363` stuck elevated since
+1.2M steps.
+
+Three failure modes were identified:
+
+1. **`frame_stack=1` cold-start blindness.** At episode reset `h=0, c=0` — the
+   LSTM has zero temporal context for the first several decision steps. A single
+   84×84 grayscale frame contains no velocity information; the agent flies blind
+   on every new life. This was the primary driver of the survival collapse.
+
+2. **LSTM re-execution drift (`clip_fraction=0.363`).** RecurrentPPO re-runs the
+   LSTM from stored initial states during the 4 optimization epochs. Each pass
+   with updated weights produces slightly different hidden states, widening the
+   importance ratio `r_t = π_θ/π_θ_old` beyond the [0.9, 1.1] clip band. The
+   policy oscillated rather than converging.
+
+3. **Stochastic/deterministic gap.** `rollout/ep_rew_mean=3311` vs
+   `eval/mean_return=1993` — the argmax deterministic policy was significantly
+   worse than the sampled stochastic policy, indicating the committed actions
+   were wrong ones.
+
+**Lesson:** `frame_stack=1 + LSTM` requires more samples than a 4M step budget
+allows for a fast-paced game like Airstriker. Frame stacking and LSTM operate at
+different timescales (fast motion vs slow spawn patterns) and are complementary,
+not redundant. See **v11** for the corrected approach:
+`frame_stack=4 + LSTM + n_epochs=2 + lr=5e-5`.
 
 ### A.1 Why LSTM in RL at all
 
