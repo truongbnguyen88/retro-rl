@@ -37,6 +37,6 @@ env_config: configs/env_v11.yaml
 
 ppo:
   n_epochs: 2
-  learning_rate: 5.0e-5
+  learning_rate: 8.0e-5
 
 total_timesteps: 6000000
