@@ -16,6 +16,7 @@ the code implements it. Milestones 5–6 document the service and UI layers.
 6. [Milestone 5 — Backend (FastAPI)](#milestone-5--backend-fastapi)
 7. [Milestone 6 — Frontend (Streamlit)](#milestone-6--frontend-streamlit)
 8. [Appendix: v10 — RecurrentPPO + LSTM (discontinued)](#appendix-v10--recurrentppo--lstm-discontinued)
+9. [Appendix: v12 — Temporal Attention (transformer over the frame window)](#appendix-v12--temporal-attention-transformer-over-the-frame-window)
 
 ---
 
@@ -1923,8 +1924,10 @@ Streamlit frontend pulls from backend API → Training, Play, Compare pages
 | v6 | EntCoefLinearSchedule (0.02→0.001) | ~275 |
 | v7 | AutoFire period 4→24 (2.5 Hz) — stop saturating bullet array | ~1248 |
 | v8 | Period=18, survival_bonus 0.01→0.03, 4M steps | ~4271 |
-| v9 | IMPALA ResNet + action_repeat=8 + VecNormalize + LR=1e-4 | **7168 @ 2.7M** |
-| v10 | RecurrentPPO + LSTM(256) + frame_stack=1 (in progress) | — |
+| v9 | IMPALA ResNet + action_repeat=8 + VecNormalize + LR=1e-4 | **7168 @ 2.7M** (best — clears the game) |
+| v10 | RecurrentPPO + LSTM(256) + frame_stack=1 | 1993 @ 4M (retired — cold-start blindness) |
+| v11 | RecurrentPPO + LSTM(256) + frame_stack=4 + n_epochs=2 | 5325 @ 5.7M (+25% vs v8, −26% vs v9) |
+| v12 | Temporal-attention extractor + frame_stack=8 (**standard PPO**) | smoke running |
 
 ---
 
@@ -2381,3 +2384,435 @@ If it climbs above 0.5, the right intervention is lowering LR or reducing
 | **Training cost** | O(batch_size) per update | O(batch_size × seq_len) per update |
 | **clip_fraction** | Typically 0.10–0.25 | Elevated ~0.35 (LSTM re-execution drift) |
 | **eval/std_return** | 0 (deterministic fixed-seed) | > 0 (sticky-action eval fix) |
+
+---
+
+## Appendix: v12 — Temporal Attention (transformer over the frame window)
+
+**Status: smoke running. Hypothesis under test.**
+
+v10 and v11 asked whether a *recurrent* memory (LSTM) could beat the stateless
+v9 baseline. Both fell short, and the post-mortem (A.1–A.6 above, plus the v11
+result in the version table) pinned the cause on one structural defect: the
+LSTM's hidden state is **zero at every episode reset** (`h=0, c=0`), so the
+policy is briefly blind at the start of every life and — worse — *deterministic*
+eval episodes that never recover from that cold start die early, producing the
+bimodal eval curve that capped v11 at 5325 vs v9's 7168.
+
+v12 keeps the *goal* of v10/v11 — give the policy temporal context beyond a few
+frames — but changes the *mechanism* from recurrence to **self-attention over a
+fixed window of frames**. A transformer that attends over the last `K` frames
+has **no hidden state to initialize**, so the cold-start defect disappears by
+construction. And because the whole thing fits inside a feature extractor that
+consumes one (stacked) observation at a time, it runs on **ordinary PPO** — none
+of the RecurrentPPO machinery in A.4–A.5 is needed.
+
+This appendix is a from-first-principles treatment of the transformer, then the
+specific architecture and how it slots into the existing pipeline.
+
+### B.1 Why attention, not recurrence — the cold-start argument
+
+Recall the three memory mechanisms this project has used:
+
+| Mechanism | Memory type | Reach | Cold start |
+|---|---|---|---|
+| Frame stack (v1–v9) | fixed, handcrafted | exactly `k` frames | none — window is filled with the first frame at reset |
+| LSTM (v10/v11) | learned, recurrent | unbounded in principle | **severe** — `h,c=0`, context must rebuild step-by-step |
+| Attention (v12) | learned, windowed | exactly `K` frames, *content-addressed* | none — window is filled with the first frame at reset |
+
+The LSTM compresses all history into a fixed-size state vector `(h, c)` that is
+updated *recurrently*: `h_t = f(h_{t-1}, x_t)`. The strength is unbounded reach;
+the weakness is that the state must be **built up sequentially** and is **wrong
+at `t=0`** (it is zero). For a fast game where an episode is a single life, the
+agent pays the cold-start tax on *every* episode.
+
+Attention takes the opposite stance: keep the last `K` frames *explicitly*
+(exactly as frame stacking already does), and let the network learn, **at every
+single step**, which of those `K` frames are relevant to the current decision —
+by content, not by recency. There is no state to carry between steps, so there
+is nothing to be wrong at reset. The window is always full (the `FrameStack`
+wrapper pads it with the first frame, §1.5 [8]). This is the same property that
+makes frame stacking robust, but with a *learned, content-addressed* read over a
+**longer** window (v12 uses `K=8` vs v9's 4) instead of a fixed convolution over
+a short one.
+
+The tradeoff for giving up the LSTM's unbounded reach: the window is finite, so
+patterns longer than `K` decision steps (~1.06 s at `K=8`, `action_repeat=8`)
+are invisible. The bet is that Airstriker's relevant temporal structure —
+bullet motion, near-term spawn timing — lives inside that window, the same bet
+that made frame stacking work for v9.
+
+### B.2 Transformer fundamentals — the mathematics of self-attention
+
+This section builds the transformer encoder from scratch. Everything v12 uses is
+here; nothing else is needed.
+
+#### B.2.1 Tokens
+
+A transformer operates on a **sequence of tokens**, each a `d`-dimensional
+vector. Stack them as the rows of a matrix:
+
+```
+X ∈ ℝ^{K×d}     K tokens, each of width d ("d_model")
+```
+
+In v12 a *token is one frame*: the per-frame CNN (B.3) turns each of the `K=8`
+stacked frames into a `d=256`-dimensional vector. So `X` is the `8×256` matrix of
+per-frame embeddings. The transformer's job is to mix information *across the 8
+frames* so the final per-frame representation is aware of the others.
+
+#### B.2.2 Queries, keys, values
+
+Self-attention is a differentiable, content-based lookup. Each token emits three
+projections of itself, via learned weight matrices `W_Q, W_K, W_V ∈ ℝ^{d×d_k}`:
+
+```
+Q = X W_Q     (K × d_k)    query  — "what is this token looking for?"
+K = X W_K     (K × d_k)    key    — "what does this token offer as a label?"
+V = X W_V     (K × d_v)    value  — "what content does this token carry?"
+```
+
+The mental model: token `i`'s **query** `q_i` is compared against every token's
+**key** `k_j`; the better they match, the more of token `j`'s **value** `v_j`
+gets mixed into token `i`'s output. This is a soft dictionary lookup where the
+match is a learned dot product instead of an exact key equality.
+
+#### B.2.3 Scaled dot-product attention — the core formula
+
+```
+                    ⎛ Q Kᵀ ⎞
+Attention(Q,K,V) = softmax⎜ ──── ⎟ V                    (K × d_v)
+                    ⎝ √d_k ⎠
+```
+
+Read it in three stages:
+
+**(1) Scores.** `S = Q Kᵀ ∈ ℝ^{K×K}`. Entry `S_{ij} = q_i · k_j` is the raw
+compatibility of query `i` with key `j` — a single dot product, large when the
+two vectors point the same way.
+
+**(2) Scale, then softmax over each row.**
+
+```
+A_{ij} = exp(S_{ij}/√d_k) / Σ_{j'} exp(S_{ij'}/√d_k)        Σ_j A_{ij} = 1
+```
+
+Each row of `A` is a probability distribution: `A_{ij}` is "how much token `i`
+attends to token `j`." These are the **attention weights**.
+
+**(3) Weighted sum of values.** `Out_i = Σ_j A_{ij} v_j`. Each token's output is
+a convex combination of all tokens' value vectors, weighted by relevance.
+
+**Why divide by `√d_k`?** The dot product `q_i·k_j = Σ_{m=1}^{d_k} q_{im}k_{jm}`
+sums `d_k` product terms. If the components are roughly independent with unit
+variance, the sum has variance `d_k` and thus standard deviation `√d_k`. Left
+unscaled, the scores grow with `d_k`, pushing softmax into its **saturated**
+regime where one weight ≈ 1 and the rest ≈ 0. In that regime the softmax
+Jacobian is nearly zero, so **gradients vanish** and the layer can't learn which
+tokens to attend to. Dividing by `√d_k` renormalizes the score variance back to
+~1, keeping softmax in its sensitive, high-gradient range. This is the single
+most important numerical detail in the attention mechanism.
+
+#### B.2.4 Multi-head attention
+
+A single attention function can only express one notion of "relevance." We want
+several in parallel — e.g. one head that tracks the immediately preceding frame
+(velocity), another that looks ~6 frames back (a spawn that is about to repeat).
+**Multi-head attention** runs `H` independent attention functions in subspaces of
+width `d_k = d/H`, then concatenates and projects:
+
+```
+head_h = Attention(X W_Q^h, X W_K^h, X W_V^h)        each (K × d_k)
+MHA(X) = Concat(head_1, …, head_H) · W_O             (K × d)
+```
+
+with `W_O ∈ ℝ^{d×d}`. v12 uses `d=256`, `H=4`, so each head works in `d_k=64`
+dimensions. Each head has its own `W_Q^h, W_K^h, W_V^h`, so the four heads learn
+four different "what is relevant" relations over the same 8 frames.
+
+#### B.2.5 Position: attention is order-blind by default
+
+Self-attention as defined is **permutation-equivariant**: permute the input
+tokens and the outputs permute identically, because `Out_i = Σ_j A_{ij} v_j` has
+no term that depends on the *indices* `i, j` — only on the token *contents*.
+That is fatal for a temporal sequence: frame order (was the bullet here *then*
+there, or there *then* here?) carries the velocity signal.
+
+The fix is a **positional encoding** added to the token embeddings before
+attention:
+
+```
+X' = X + P        P ∈ ℝ^{K×d}, row P_k encodes "this is frame k"
+```
+
+Two common choices: fixed **sinusoidal** encodings (original Transformer, good
+for extrapolating to unseen lengths) or **learned** positional embeddings (a
+trainable parameter, one `d`-vector per position). v12 uses **learned**
+embeddings — the window length `K=8` is fixed, so there is nothing to extrapolate
+to, and a learnable per-slot bias is the simplest thing that works:
+
+```python
+self.pos_emb = nn.Parameter(torch.zeros(1, K, d))   # learned, K×d
+tokens = tokens + self.pos_emb                       # inject order
+```
+
+#### B.2.6 The transformer encoder layer
+
+One encoder layer wraps multi-head attention and a position-wise feed-forward
+network (FFN), each inside a **residual connection** with **LayerNorm**. v12 uses
+the **pre-LN** ("norm-first") variant:
+
+```
+z   = x + MHA( LayerNorm(x) )            ← attention sublayer + residual
+out = z + FFN( LayerNorm(z) )            ← feed-forward sublayer + residual
+
+FFN(u) = W₂ · GELU(W₁ u + b₁) + b₂        W₁ ∈ ℝ^{d_ff×d}, W₂ ∈ ℝ^{d×d_ff}
+```
+
+Each piece, and why it is there:
+
+- **Residual connections (`x + …`).** Same gradient-highway logic as the IMPALA
+  residual block (§2.3a): the `+x` gives `∂out/∂x` an additive `+1` term, so
+  gradients flow to early layers even if a sublayer saturates. This is what makes
+  deep transformer stacks trainable.
+
+- **LayerNorm**, not BatchNorm. LayerNorm normalizes across the `d` features of
+  *each token independently*: `LN(x) = γ ⊙ (x−μ)/σ + β` with `μ, σ` computed over
+  that token's own `d` components. It uses **no batch statistics**, so — exactly
+  as argued for avoiding BatchNorm in the IMPALA backbone (§2.3c) — it is stable
+  under RL's small, correlated, non-stationary minibatches.
+
+- **Pre-LN vs post-LN.** Original Transformers put LayerNorm *after* the residual
+  add (`LN(x + sublayer(x))`); pre-LN puts it *inside* (`x + sublayer(LN(x))`).
+  Pre-LN keeps a clean, un-normalized residual path from input to output, which
+  makes gradients better-behaved and removes the need for learning-rate warmup.
+  It is the modern default and what v12 selects via `norm_first=True`. (This is
+  also why the readout in B.3 can safely take a raw token off the residual
+  stream.)
+
+- **The FFN** is a 2-layer MLP applied to **each token independently** (same
+  weights for all positions). Attention *mixes information across tokens*; the
+  FFN then *transforms each token's mixed representation* nonlinearly. v12 uses
+  `d_ff = 2d = 512` and a **GELU** activation (a smooth ReLU variant standard in
+  transformers). Roughly: attention = "communication between frames," FFN =
+  "computation within a frame."
+
+#### B.2.7 Computational cost
+
+For a length-`K`, width-`d` sequence, one attention layer costs:
+
+```
+projections (Q,K,V,O):   O(K · d²)
+scores QKᵀ and A·V:      O(K² · d)
+```
+
+At v12's `K=8, d=256`: the `K²d` term is `64·256 ≈ 16K` multiply-adds per layer —
+negligible — and the `Kd²` projection term dominates at `~524K`. The transformer
+is **cheap relative to the per-frame CNN** (B.3); the real compute cost of v12 is
+encoding `K=8` frames through the CNN, not the attention. Note also that, unlike
+the LSTM's inherently **sequential** `O(K)` recurrence, attention is a couple of
+**parallel** matrix multiplies — there is no step-by-step unroll.
+
+### B.3 The v12 architecture — `TemporalAttentionExtractor`
+
+[`models/attention.py`](../src/retro_rl/models/attention.py). The extractor is a
+drop-in for `RetroCNN`/`ImpalaCNN` — same `(observation_space, features_dim)`
+constructor — so it plugs into the existing registry and PPO factory unchanged
+(§2.4, §2.5).
+
+```
+obs (B, K=8, 84, 84) uint8        ← the channel axis IS the frame sequence
+   │                                  (grayscale ⇒ 1 channel/frame ⇒ C = K)
+   │  /255, reshape → (B·K, 1, 84, 84)        tokenize: one frame per token
+   ▼
+┌─────────────────────────────────────────────┐
+│  Per-frame CNN  (Nature-CNN, SHARED weights) │
+│   Conv(1→32, k8 s4) → ReLU   → (32, 20, 20)  │
+│   Conv(32→64,k4 s2) → ReLU   → (64,  9,  9)  │
+│   Conv(64→64,k3 s1) → ReLU   → (64,  7,  7)  │
+│   Flatten                     → (3136,)      │
+│   Linear(3136 → 256) → ReLU   → (256,)       │
+└─────────────────────────────────────────────┘
+   │  reshape → (B, K, 256)        K token embeddings
+   │  + learned positional embedding  (1, K, 256)
+   ▼
+┌─────────────────────────────────────────────┐
+│  TransformerEncoder  (2 layers, pre-LN)      │
+│    per layer:  MHA(4 heads, d=256)           │
+│                + FFN(256→512→256, GELU)      │
+│                2× LayerNorm, 2× residual     │
+│  full (non-causal) self-attention over K=8   │
+└─────────────────────────────────────────────┘
+   │  z ∈ (B, K, 256)
+   ▼  take the LAST token:  z[:, -1, :]
+features (B, 256)   →   Actor MLP [64,64] Tanh → 9 logits
+                    →   Critic MLP [64,64] Tanh → V(s)
+```
+
+Design decisions, each with its rationale:
+
+- **A token = a frame.** The channel axis of the stacked observation `(K,84,84)`
+  *is* the sequence (grayscale ⇒ one channel per frame, §1.5 [7–8]). We reshape
+  `(B,K,84,84) → (B·K,1,84,84)`, run the CNN once on that flattened batch, and
+  reshape back to `(B,K,256)`. The CNN weights are **shared** across the `K`
+  frames (it is the same function applied to each), exactly like a token
+  embedding shared across positions in NLP.
+
+- **Per-frame encoder = Nature-CNN, not IMPALA.** The temporal modeling now lives
+  in the attention layers, so the per-frame encoder need not be deep. Using the
+  lighter Nature-CNN keeps the cost of `K=8` forward passes in the ballpark of
+  v9's single IMPALA pass on a 4-channel input. (`features_dim=256` so the conv
+  flatten dim is the same 3136 as §2.2.)
+
+- **`d_model = features_dim = 256`.** Attention runs in the extractor's output
+  width; there is no separate token-dimension knob. `n_heads=4` must divide it
+  (256/4 = 64 per head). `n_heads`, `n_layers=2`, and `d_ff=512` are **baked into
+  the extractor**, not exposed as config — they are used in exactly one place;
+  promote to YAML only if a smoke shows they need tuning.
+
+- **Last-token readout.** We return `z[:, -1, :]` — the *most recent* frame's
+  representation, after it has attended over all `K` frames. Why the last token,
+  and why full (non-causal) attention is fine: we only ever read position `K−1`,
+  and under a causal mask position `K−1` already attends to all positions `≤K−1`
+  (i.e. everything). So causal and full attention give the **same** output for
+  the last token — we use full attention because it is simpler, and read the last
+  token because it represents "now, informed by the recent past," which is
+  exactly the feature the policy needs.
+
+- **Cold-start: eliminated.** At episode reset the `FrameStack` wrapper fills all
+  `K` slots with the first frame, so the window is always populated. There is no
+  zero-state — the worst case is a *mildly degenerate* window (all 8 slots equal)
+  for the first step, which resolves to genuine history within `K` steps. Contrast
+  the LSTM's `h,c=0`, which is an *out-of-distribution* state the network must
+  actively recover from.
+
+**Parameter budget (approximate):**
+
+| Component | Params | Note |
+|---|---|---|
+| Per-frame CNN (shared) | ~0.88 M | the `3136→256` FC dominates (§2.2 pattern) |
+| Positional embedding | ~2 K | `K×d = 8×256` |
+| Transformer (2 layers) | ~1.05 M | per layer ≈ 0.53 M (MHA ≈ 0.26 M + FFN ≈ 0.26 M) |
+| Actor + critic heads | ~42 K | SB3 default `[64,64]` MLPs |
+| **Total** | **~1.97 M** | vs v9 1.13 M, v10 1.66 M |
+
+The transformer is where the added parameters go — but, per B.2.7, not where the
+added *compute* goes (that is the `K`-fold CNN).
+
+### B.4 Integration with standard PPO — the simplicity win
+
+The defining practical advantage of v12 over v10/v11: it requires **zero changes
+to the training loop**. Everything in A.4–A.5 — hidden-state threading, ordered
+sequence minibatches, TBPTT, the per-step `(h,c)` buffer fields — **does not
+exist** for v12. The reason is structural: a transformer-over-the-window is a
+*stateless function of one observation*. It reads the `K` frames that the
+`FrameStack` wrapper already packs into a single observation tensor, so from
+PPO's point of view it is just another CNN feature extractor.
+
+Concretely, compared to the standard-PPO pipeline of Milestone 3, v12 changes
+**nothing**:
+
+- **Rollout buffer:** identical to §3.1 (no `(h,c)` fields). Observations are the
+  same `(K,84,84)` uint8 tensors, just with `K=8` instead of 4.
+- **Minibatching:** the random shuffle of 1024 transitions is **restored** (A.4
+  had to give this up for ordered sequences). Each transition is independent
+  again.
+- **Forward pass:** independent per observation — the attention happens *inside*
+  the extractor over that observation's own 8 frames, never across buffer rows.
+- **Trainer / callbacks / checkpoint / eval / backend:** untouched. The
+  `algorithm="ppo"` branch in [`trainer.py`](../src/retro_rl/training/trainer.py)
+  already wires `build_ppo`; `predict()` returns `(action, None)` (no recurrent
+  state), so eval and the FastAPI backend are unchanged.
+
+The entire wiring is **one registry line** (§2.4):
+
+```python
+FEATURE_EXTRACTORS = {
+    "nature_cnn": RetroCNN,
+    "impala":     ImpalaCNN,
+    "temporal_attn": TemporalAttentionExtractor,   # ← v12
+}
+```
+
+plus a config overlay (`ppo_v12.yaml` extends `ppo_v9.yaml`, swapping
+`features_extractor: impala → temporal_attn` and `frame_stack: 4 → 8`; everything
+else — VecNormalize, LR=1e-4, ent-coef schedule, 4M steps — is inherited from the
+best run for a clean head-to-head).
+
+### B.5 Shape / data flow — one observation through the extractor
+
+```
+═══════════════════════════════════════════════════════════════════════════════
+  v12 feature extractor — forward pass for a batch of B observations
+═══════════════════════════════════════════════════════════════════════════════
+
+  input   obs   (B, 8, 84, 84)  uint8        ← 8-frame stack, channel axis = time
+            │  x = obs.float()/255
+            │  reshape (B,8,84,84) → (B·8, 1, 84, 84)     each frame = one token
+            ▼
+  ┌────────────────────────────┐
+  │  Per-frame CNN (shared)     │  batch = B·8 single-channel frames
+  │   (B·8, 1, 84, 84)          │
+  │     ↓ Conv(1→32,k8,s4)+ReLU │
+  │   (B·8, 32, 20, 20)         │
+  │     ↓ Conv(32→64,k4,s2)+ReLU│
+  │   (B·8, 64,  9,  9)         │
+  │     ↓ Conv(64→64,k3,s1)+ReLU│
+  │   (B·8, 64,  7,  7)         │
+  │     ↓ Flatten               │
+  │   (B·8, 3136)               │
+  │     ↓ Linear(3136→256)+ReLU │
+  │   (B·8, 256)                │  ← one 256-d embedding per frame
+  └─────────────┬───────────────┘
+                │  reshape → (B, 8, 256)            sequence of 8 tokens
+                │  + pos_emb (1, 8, 256)            inject frame order
+                ▼
+  ┌────────────────────────────────────────────────────────┐
+  │  Transformer encoder, layer ℓ = 1,2   (pre-LN)          │
+  │                                                          │
+  │   u = LayerNorm(x)                  (B, 8, 256)          │
+  │   Q,K,V = u W_Q, u W_K, u W_V       (B, 8, 64) ×4 heads  │
+  │   A = softmax(Q Kᵀ / √64)           (B, 4, 8, 8)         │ ← per-head 8×8
+  │   head = A · V                      (B, 8, 64) ×4        │   attention map
+  │   x = x + Concat(heads) W_O         (B, 8, 256)          │ ← residual
+  │   x = x + FFN(LayerNorm(x))         (B, 8, 256)          │ ← residual, GELU
+  └─────────────┬────────────────────────────────────────────┘
+                │  z = x   (B, 8, 256)
+                ▼  take last token   z[:, -1, :]
+            (B, 256)   ← "current frame, informed by the prior 7"
+                │
+          ┌─────┴─────┐
+          ▼           ▼
+       Actor        Critic        (SB3-default [64,64] Tanh MLP heads, §2.4)
+      9 logits      V(s)
+
+  Note: the 8×8 attention matrix A is per-head and per-observation — fully
+  parallel across the B batch and the 4 heads. No step-by-step unroll, no
+  state carried between observations (contrast A.5's LSTM).
+```
+
+### B.6 Frame stack vs LSTM vs attention — what changes
+
+| Aspect | Frame stack (v9) | LSTM (v10/v11) | Attention (v12) |
+|---|---|---|---|
+| **Memory** | fixed conv over `k` frames | learned recurrent state | learned content-read over `K` frames |
+| **Reach** | exactly `k` (=4) | unbounded (in principle) | exactly `K` (=8), explicit |
+| **Cross-frame mixing** | first conv layer, by position | recurrence, sequential | self-attention, by content |
+| **Cold start** | none | **severe** (`h,c=0`) | none (window pre-filled) |
+| **Algorithm** | standard PPO | RecurrentPPO (A.4) | **standard PPO** |
+| **Rollout buffer** | obs only | obs + per-step `(h,c)` | obs only |
+| **Minibatches** | random shuffle | ordered sequences | random shuffle |
+| **Forward pass** | independent per obs | sequential, stateful | independent per obs |
+| **Parallelism** | full | limited (sequential unroll) | full (parallel matmuls) |
+| **Added params** | 0 | ~0.5 M (LSTM) | ~0.8 M (transformer) |
+| **Added compute** | ~0 | LSTM unrolls | `K`-fold CNN passes |
+| **Eval-time risk** | none | bimodal (cold-start dropouts) | none by construction |
+
+**The thesis of v12 in one line:** keep the LSTM's *learned, adaptive* temporal
+read, but realize it over an *explicit, always-present* window instead of a
+recurrent state — buying back the stateless simplicity (and cold-start immunity)
+of frame stacking while extending the window and making the read content-based.
+Whether that beats v9's plain 4-frame conv is exactly what the smoke and the 4M
+run will decide; v9 already clears the game with a 533 ms window, so a null
+result (attention adds nothing this game needs) is a real and informative
+possibility.

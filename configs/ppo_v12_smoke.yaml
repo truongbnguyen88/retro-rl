@@ -1,0 +1,20 @@
+# v12 smoke test — 500K-step validation before the full 4M run.
+# Inherits ppo_v12.yaml; only shortens the run and renames it.
+#
+# What to check at 500K (eval every 100K → 5 evals):
+#   - no crash; TemporalAttentionExtractor + frame_stack=8 + VecNormalize run
+#     end to end on standard PPO;
+#   - explained_variance > 0.85  (value head fitting, as v9 reached ~0.9 @ 500K);
+#   - clip_fraction < 0.25  (expected for standard PPO);
+#   - eval/mean_return trending up, in the neighbourhood of v9 smoke's 2608 @ 500K
+#     (the bar that says temporal attention is competitive with IMPALA);
+#   - report real fps (8 per-frame CNN passes per obs — confirm throughput
+#     >= ~25 fps before committing 4M; if lower, reduce frame_stack 8 → 6).
+#
+# GO criteria (all must hold):   EV > 0.85,  clip_fraction < 0.25,  return ~2600
+# ABORT / re-tune criteria:      EV pinned at 0 → drop learning_rate 1e-4 → 5e-5
+
+extends: configs/ppo_v12.yaml
+
+run_name: ppo_airstriker_v12_smoke
+total_timesteps: 500000

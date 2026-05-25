@@ -1,0 +1,71 @@
+[05/25/26 11:24:13] INFO     run_name=ppo_airstriker_v12_smoke seed=42
+                             total_timesteps=500000 n_envs=8 resume=None
+2026-05-25 11:24:16.076 Python[3966:34858879] ApplePersistenceIgnoreState: Existing state will not be touched. New state will be written to /var/folders/56/jqj8nyt12sxbm6rgrnlf06y00000gn/T/org.python.python.savedState
+2026-05-25 11:24:16.076 Python[3960:34858863] ApplePersistenceIgnoreState: Existing state will not be touched. New state will be written to /var/folders/56/jqj8nyt12sxbm6rgrnlf06y00000gn/T/org.python.python.savedState
+2026-05-25 11:24:16.077 Python[3961:34858867] ApplePersistenceIgnoreState: Existing state will not be touched. New state will be written to /var/folders/56/jqj8nyt12sxbm6rgrnlf06y00000gn/T/org.python.python.savedState
+2026-05-25 11:24:16.078 Python[3965:34858878] ApplePersistenceIgnoreState: Existing state will not be touched. New state will be written to /var/folders/56/jqj8nyt12sxbm6rgrnlf06y00000gn/T/org.python.python.savedState
+2026-05-25 11:24:16.078 Python[3959:34858861] ApplePersistenceIgnoreState: Existing state will not be touched. New state will be written to /var/folders/56/jqj8nyt12sxbm6rgrnlf06y00000gn/T/org.python.python.savedState
+2026-05-25 11:24:16.078 Python[3962:34858870] ApplePersistenceIgnoreState: Existing state will not be touched. New state will be written to /var/folders/56/jqj8nyt12sxbm6rgrnlf06y00000gn/T/org.python.python.savedState
+2026-05-25 11:24:16.079 Python[3964:34858876] ApplePersistenceIgnoreState: Existing state will not be touched. New state will be written to /var/folders/56/jqj8nyt12sxbm6rgrnlf06y00000gn/T/org.python.python.savedState
+2026-05-25 11:24:16.079 Python[3963:34858872] ApplePersistenceIgnoreState: Existing state will not be touched. New state will be written to /var/folders/56/jqj8nyt12sxbm6rgrnlf06y00000gn/T/org.python.python.savedState
+[05/25/26 11:24:16] INFO     VecNormalize active: norm_reward=True
+                             norm_obs=False gamma=0.99
+                    INFO     algorithm=ppo features_extractor=temporal_attn
+                             features_dim=256
+Using cpu device
+Wrapping the env in a VecTransposeImage.
+[05/25/26 11:24:17] INFO     ent_coef schedule: linear 0.02 → 0.001 over 500000
+                             steps
+Logging to outputs/tensorboard/ppo_airstriker_v12_smoke_1
+reward_shaping: info key 'x_pos' not present; corresponding term will be zero. Check the stable-retro integration's data.json.
+reward_shaping: info key 'x_pos' not present; corresponding term will be zero. Check the stable-retro integration's data.json.
+reward_shaping: info key 'x_pos' not present; corresponding term will be zero. Check the stable-retro integration's data.json.
+reward_shaping: info key 'x_pos' not present; corresponding term will be zero. Check the stable-retro integration's data.json.
+reward_shaping: info key 'x_pos' not present; corresponding term will be zero. Check the stable-retro integration's data.json.
+reward_shaping: info key 'x_pos' not present; corresponding term will be zero. Check the stable-retro integration's data.json.
+reward_shaping: info key 'x_pos' not present; corresponding term will be zero. Check the stable-retro integration's data.json.
+reward_shaping: info key 'x_pos' not present; corresponding term will be zero. Check the stable-retro integration's data.json.
+-------------------------------------------
+| rollout/                |               |
+|    ep_len_mean          | 206           |
+|    ep_rew_mean          | 242           |
+| time/                   |               |
+|    fps                  | 46            |
+|    iterations           | 10            |
+|    time_elapsed         | 220           |
+|    total_timesteps      | 10240         |
+| train/                  |               |
+|    approx_kl            | 0.00017897598 |
+|    clip_fraction        | 0             |
+|    clip_range           | 0.0982        |
+|    ent_coef             | 0.0196        |
+|    entropy_loss         | -2.2          |
+|    explained_variance   | 0.558         |
+|    learning_rate        | 9.82e-05      |
+|    loss                 | -0.0212       |
+|    n_updates            | 36            |
+|    policy_gradient_loss | -0.00131      |
+|    value_loss           | 0.101         |
+-------------------------------------------
+------------------------------------------
+| rollout/                |              |
+|    ep_len_mean          | 204          |
+|    ep_rew_mean          | 261          |
+| time/                   |              |
+|    fps                  | 44           |
+|    iterations           | 20           |
+|    time_elapsed         | 458          |
+|    total_timesteps      | 20480        |
+| train/                  |              |
+|    approx_kl            | 0.0005271465 |
+|    clip_fraction        | 0.00146      |
+|    clip_range           | 0.0961       |
+|    ent_coef             | 0.0192       |
+|    entropy_loss         | -2.19        |
+|    explained_variance   | 0.74         |
+|    learning_rate        | 9.61e-05     |
+|    loss                 | -0.0213      |
+|    n_updates            | 76           |
+|    policy_gradient_loss | -0.00355     |
+|    value_loss           | 0.0953       |
+------------------------------------------

@@ -1,0 +1,37 @@
+# v12 training config — temporal-attention feature extractor.
+# Inherits ppo_v9.yaml (the best run to date: stateless PPO + VecNormalize +
+# LR=1e-4 + ent_coef schedule + 4M steps) and swaps ONLY the feature extractor
+# and frame window. Everything that made v9 work is held fixed for a clean
+# head-to-head comparison.
+#
+# Why v12: v10/v11 tested LSTM recurrent memory and fell short of v9 — the
+# LSTM's (h,c)=0 cold-start at every episode reset is a structural eval-time
+# penalty (v11 best 5325 vs v9's 7168, despite 50% more compute). A transformer
+# over a fixed K-frame window has no hidden state to initialize, so it tests the
+# same "temporal memory helps" hypothesis without the cold-start cost — and runs
+# on standard PPO (no recurrent machinery, no trainer/eval/backend changes).
+#
+# Changes vs v9:
+#   1. features_extractor impala → temporal_attn  (per-frame Nature-CNN tokens →
+#      self-attention over the 8-frame window → last-token readout)
+#   2. frame_stack 4 → 8  (in configs/env_v12.yaml)
+#
+# Unchanged from v9: algorithm=ppo, normalize_reward=true, learning_rate=1e-4,
+# ent_coef schedule, n_steps/batch/epochs, total_timesteps=4M.
+#
+# Attention hyperparameters (n_heads=4, n_layers=2, dim_feedforward=2x) are baked
+# into the extractor, not exposed here — promote to config only if a smoke shows
+# they need tuning.
+#
+# NOTE: validate with configs/ppo_v12_smoke.yaml (500K) before the full 4M run.
+# Smoke GO gate: explained_variance > 0.85, clip_fraction < 0.25,
+# eval/mean_return in the neighbourhood of v9 smoke's 2608 @ 500K, fps >= ~25.
+# If EV pins at 0, drop learning_rate 1e-4 → 5e-5 (same ladder as v9 smoke).
+
+extends: configs/ppo_v9.yaml
+
+run_name: ppo_airstriker_v12
+env_config: configs/env_v12.yaml
+
+features_extractor: temporal_attn
+features_dim: 256

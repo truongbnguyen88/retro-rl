@@ -12,6 +12,7 @@ import pytest
 import torch
 from gymnasium import spaces
 
+from retro_rl.models.attention import TemporalAttentionExtractor
 from retro_rl.models.cnn import RetroCNN
 from retro_rl.models.impala import ImpalaCNN
 from retro_rl.models.policies import FEATURE_EXTRACTORS, policy_kwargs
@@ -103,12 +104,63 @@ def test_impala_normalizes_uint8_to_float():
     assert torch.isfinite(cnn(x_max)).all()
 
 
+# ---- Temporal attention ---------------------------------------------------
+
+
+def test_temporal_attn_forward_default_features_dim():
+    # K=8 frames (v12 default frame_stack).
+    extractor = TemporalAttentionExtractor(_cnn_obs_space(c=8))
+    out = extractor(torch.zeros((2, 8, 84, 84), dtype=torch.uint8))
+    assert out.shape == (2, 256)
+    assert out.dtype == torch.float32
+
+
+def test_temporal_attn_custom_features_dim():
+    extractor = TemporalAttentionExtractor(_cnn_obs_space(c=8), features_dim=512)
+    out = extractor(torch.zeros((1, 8, 84, 84), dtype=torch.uint8))
+    assert out.shape == (1, 512)
+
+
+def test_temporal_attn_handles_other_frame_counts():
+    # K=4 (v9-style window) must also produce features.
+    extractor = TemporalAttentionExtractor(_cnn_obs_space(c=4))
+    out = extractor(torch.zeros((3, 4, 84, 84), dtype=torch.uint8))
+    assert out.shape == (3, 256)
+
+
+def test_temporal_attn_rejects_non_image_space():
+    flat = spaces.Box(low=0, high=255, shape=(8 * 84 * 84,), dtype=np.uint8)
+    with pytest.raises(ValueError):
+        TemporalAttentionExtractor(flat)
+
+
+def test_temporal_attn_rejects_indivisible_heads():
+    # features_dim must be divisible by n_heads.
+    with pytest.raises(ValueError):
+        TemporalAttentionExtractor(_cnn_obs_space(c=8), features_dim=250, n_heads=4)
+
+
+def test_temporal_attn_normalizes_uint8_to_float():
+    extractor = TemporalAttentionExtractor(_cnn_obs_space(c=8))
+    x_zeros = torch.zeros((1, 8, 84, 84), dtype=torch.uint8)
+    x_max = torch.full((1, 8, 84, 84), 255, dtype=torch.uint8)
+    assert torch.isfinite(extractor(x_zeros)).all()
+    assert torch.isfinite(extractor(x_max)).all()
+
+
 # ---- extractor selection --------------------------------------------------
 
 
 def test_policy_kwargs_selects_impala():
     kw = policy_kwargs(features_dim=256, features_extractor="impala")
     assert kw["features_extractor_class"] is ImpalaCNN
+    assert kw["features_extractor_kwargs"] == {"features_dim": 256}
+    assert kw["normalize_images"] is False
+
+
+def test_policy_kwargs_selects_temporal_attn():
+    kw = policy_kwargs(features_dim=256, features_extractor="temporal_attn")
+    assert kw["features_extractor_class"] is TemporalAttentionExtractor
     assert kw["features_extractor_kwargs"] == {"features_dim": 256}
     assert kw["normalize_images"] is False
 
@@ -121,3 +173,4 @@ def test_policy_kwargs_rejects_unknown_extractor():
 def test_feature_extractor_registry_contents():
     assert FEATURE_EXTRACTORS["nature_cnn"] is RetroCNN
     assert FEATURE_EXTRACTORS["impala"] is ImpalaCNN
+    assert FEATURE_EXTRACTORS["temporal_attn"] is TemporalAttentionExtractor

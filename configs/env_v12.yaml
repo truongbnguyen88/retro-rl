@@ -1,0 +1,15 @@
+# v12 environment config — temporal-attention window.
+# Inherits env_v9.yaml (action_repeat=8, auto_fire.period=12) and only widens
+# the frame stack so the attention extractor has a meaningful sequence to
+# attend over.
+#
+# frame_stack 4 → 8: doubles v9's temporal window to ~1.06s (8 frames x 133ms
+# at action_repeat=8). Gives the TemporalAttentionExtractor 8 tokens. Unlike the
+# LSTM (v10/v11), there is no hidden-state cold-start — at episode reset the
+# FrameStack wrapper fills all 8 slots with the first frame, so the window is
+# always populated. K=8 keeps the per-frame CNN cost (8 passes of a Nature-CNN)
+# in the ballpark of v9's single IMPALA pass.
+
+extends: configs/env_v9.yaml
+
+frame_stack: 8

@@ -9,11 +9,11 @@ head, value head, schedule).
 
 Feature-extractor registry
 ---------------------------
-Two extractors ship today — the Nature-CNN (:class:`RetroCNN`) and the IMPALA
-ResNet (:class:`ImpalaCNN`). ``FEATURE_EXTRACTORS`` maps the config-facing name
-(``TrainConfig.features_extractor``) to the class. This is the "second variant"
-case CLAUDE.md anticipates: a flat dict, not a plugin framework. Add an entry
-when a third extractor lands.
+Three extractors ship today — the Nature-CNN (:class:`RetroCNN`), the IMPALA
+ResNet (:class:`ImpalaCNN`), and the temporal-attention transformer
+(:class:`TemporalAttentionExtractor`). ``FEATURE_EXTRACTORS`` maps the
+config-facing name (``TrainConfig.features_extractor``) to the class — a flat
+dict, not a plugin framework. Add an entry when a new extractor lands.
 
 We still avoid a custom policy *subclass* — that abstraction only earns its
 keep when a non-CNN policy (e.g. recurrent) arrives, at which point the trainer
@@ -26,12 +26,14 @@ from typing import Any
 
 from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
 
+from retro_rl.models.attention import TemporalAttentionExtractor
 from retro_rl.models.cnn import RetroCNN
 from retro_rl.models.impala import ImpalaCNN
 
 FEATURE_EXTRACTORS: dict[str, type[BaseFeaturesExtractor]] = {
     "nature_cnn": RetroCNN,
     "impala": ImpalaCNN,
+    "temporal_attn": TemporalAttentionExtractor,
 }
 
 
