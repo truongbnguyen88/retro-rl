@@ -1,20 +1,20 @@
-[05/25/26 11:24:13] INFO     run_name=ppo_airstriker_v12_smoke seed=42
+[05/25/26 17:09:11] INFO     run_name=ppo_airstriker_v12_smoke seed=42
                              total_timesteps=500000 n_envs=8 resume=None
-2026-05-25 11:24:16.076 Python[3966:34858879] ApplePersistenceIgnoreState: Existing state will not be touched. New state will be written to /var/folders/56/jqj8nyt12sxbm6rgrnlf06y00000gn/T/org.python.python.savedState
-2026-05-25 11:24:16.076 Python[3960:34858863] ApplePersistenceIgnoreState: Existing state will not be touched. New state will be written to /var/folders/56/jqj8nyt12sxbm6rgrnlf06y00000gn/T/org.python.python.savedState
-2026-05-25 11:24:16.077 Python[3961:34858867] ApplePersistenceIgnoreState: Existing state will not be touched. New state will be written to /var/folders/56/jqj8nyt12sxbm6rgrnlf06y00000gn/T/org.python.python.savedState
-2026-05-25 11:24:16.078 Python[3965:34858878] ApplePersistenceIgnoreState: Existing state will not be touched. New state will be written to /var/folders/56/jqj8nyt12sxbm6rgrnlf06y00000gn/T/org.python.python.savedState
-2026-05-25 11:24:16.078 Python[3959:34858861] ApplePersistenceIgnoreState: Existing state will not be touched. New state will be written to /var/folders/56/jqj8nyt12sxbm6rgrnlf06y00000gn/T/org.python.python.savedState
-2026-05-25 11:24:16.078 Python[3962:34858870] ApplePersistenceIgnoreState: Existing state will not be touched. New state will be written to /var/folders/56/jqj8nyt12sxbm6rgrnlf06y00000gn/T/org.python.python.savedState
-2026-05-25 11:24:16.079 Python[3964:34858876] ApplePersistenceIgnoreState: Existing state will not be touched. New state will be written to /var/folders/56/jqj8nyt12sxbm6rgrnlf06y00000gn/T/org.python.python.savedState
-2026-05-25 11:24:16.079 Python[3963:34858872] ApplePersistenceIgnoreState: Existing state will not be touched. New state will be written to /var/folders/56/jqj8nyt12sxbm6rgrnlf06y00000gn/T/org.python.python.savedState
-[05/25/26 11:24:16] INFO     VecNormalize active: norm_reward=True
+2026-05-25 17:09:13.681 Python[6919:35033348] ApplePersistenceIgnoreState: Existing state will not be touched. New state will be written to /var/folders/56/jqj8nyt12sxbm6rgrnlf06y00000gn/T/org.python.python.savedState
+2026-05-25 17:09:13.682 Python[6920:35033349] ApplePersistenceIgnoreState: Existing state will not be touched. New state will be written to /var/folders/56/jqj8nyt12sxbm6rgrnlf06y00000gn/T/org.python.python.savedState
+2026-05-25 17:09:13.682 Python[6914:35033332] ApplePersistenceIgnoreState: Existing state will not be touched. New state will be written to /var/folders/56/jqj8nyt12sxbm6rgrnlf06y00000gn/T/org.python.python.savedState
+2026-05-25 17:09:13.682 Python[6915:35033335] ApplePersistenceIgnoreState: Existing state will not be touched. New state will be written to /var/folders/56/jqj8nyt12sxbm6rgrnlf06y00000gn/T/org.python.python.savedState
+2026-05-25 17:09:13.682 Python[6916:35033340] ApplePersistenceIgnoreState: Existing state will not be touched. New state will be written to /var/folders/56/jqj8nyt12sxbm6rgrnlf06y00000gn/T/org.python.python.savedState
+2026-05-25 17:09:13.682 Python[6918:35033346] ApplePersistenceIgnoreState: Existing state will not be touched. New state will be written to /var/folders/56/jqj8nyt12sxbm6rgrnlf06y00000gn/T/org.python.python.savedState
+2026-05-25 17:09:13.682 Python[6913:35033329] ApplePersistenceIgnoreState: Existing state will not be touched. New state will be written to /var/folders/56/jqj8nyt12sxbm6rgrnlf06y00000gn/T/org.python.python.savedState
+2026-05-25 17:09:13.685 Python[6917:35033343] ApplePersistenceIgnoreState: Existing state will not be touched. New state will be written to /var/folders/56/jqj8nyt12sxbm6rgrnlf06y00000gn/T/org.python.python.savedState
+[05/25/26 17:09:14] INFO     VecNormalize active: norm_reward=True
                              norm_obs=False gamma=0.99
                     INFO     algorithm=ppo features_extractor=temporal_attn
                              features_dim=256
 Using cpu device
 Wrapping the env in a VecTransposeImage.
-[05/25/26 11:24:17] INFO     ent_coef schedule: linear 0.02 → 0.001 over 500000
+                    INFO     ent_coef schedule: linear 0.02 → 0.001 over 500000
                              steps
 Logging to outputs/tensorboard/ppo_airstriker_v12_smoke_1
 reward_shaping: info key 'x_pos' not present; corresponding term will be zero. Check the stable-retro integration's data.json.
@@ -25,47 +25,1448 @@ reward_shaping: info key 'x_pos' not present; corresponding term will be zero. C
 reward_shaping: info key 'x_pos' not present; corresponding term will be zero. Check the stable-retro integration's data.json.
 reward_shaping: info key 'x_pos' not present; corresponding term will be zero. Check the stable-retro integration's data.json.
 reward_shaping: info key 'x_pos' not present; corresponding term will be zero. Check the stable-retro integration's data.json.
+------------------------------------------
+| rollout/                |              |
+|    ep_len_mean          | 209          |
+|    ep_rew_mean          | 240          |
+| time/                   |              |
+|    fps                  | 47           |
+|    iterations           | 10           |
+|    time_elapsed         | 217          |
+|    total_timesteps      | 10240        |
+| train/                  |              |
+|    approx_kl            | 3.377674e-05 |
+|    clip_fraction        | 0            |
+|    clip_range           | 0.0982       |
+|    ent_coef             | 0.0196       |
+|    entropy_loss         | -2.2         |
+|    explained_variance   | 0.616        |
+|    learning_rate        | 4.91e-05     |
+|    loss                 | -0.0189      |
+|    n_updates            | 36           |
+|    policy_gradient_loss | -0.000592    |
+|    value_loss           | 0.0977       |
+------------------------------------------
 -------------------------------------------
 | rollout/                |               |
 |    ep_len_mean          | 206           |
-|    ep_rew_mean          | 242           |
+|    ep_rew_mean          | 245           |
 | time/                   |               |
-|    fps                  | 46            |
-|    iterations           | 10            |
-|    time_elapsed         | 220           |
-|    total_timesteps      | 10240         |
+|    fps                  | 45            |
+|    iterations           | 20            |
+|    time_elapsed         | 453           |
+|    total_timesteps      | 20480         |
 | train/                  |               |
-|    approx_kl            | 0.00017897598 |
+|    approx_kl            | 3.3302524e-05 |
 |    clip_fraction        | 0             |
-|    clip_range           | 0.0982        |
-|    ent_coef             | 0.0196        |
+|    clip_range           | 0.0961        |
+|    ent_coef             | 0.0192        |
 |    entropy_loss         | -2.2          |
-|    explained_variance   | 0.558         |
-|    learning_rate        | 9.82e-05      |
-|    loss                 | -0.0212       |
-|    n_updates            | 36            |
-|    policy_gradient_loss | -0.00131      |
-|    value_loss           | 0.101         |
+|    explained_variance   | 0.584         |
+|    learning_rate        | 4.81e-05      |
+|    loss                 | 0.0051        |
+|    n_updates            | 76            |
+|    policy_gradient_loss | -0.000566     |
+|    value_loss           | 0.136         |
+-------------------------------------------
+-------------------------------------------
+| rollout/                |               |
+|    ep_len_mean          | 204           |
+|    ep_rew_mean          | 244           |
+| time/                   |               |
+|    fps                  | 44            |
+|    iterations           | 30            |
+|    time_elapsed         | 690           |
+|    total_timesteps      | 30720         |
+| train/                  |               |
+|    approx_kl            | 0.00022786268 |
+|    clip_fraction        | 0             |
+|    clip_range           | 0.0941        |
+|    ent_coef             | 0.0188        |
+|    entropy_loss         | -2.19         |
+|    explained_variance   | 0.8           |
+|    learning_rate        | 4.7e-05       |
+|    loss                 | -0.0194       |
+|    n_updates            | 116           |
+|    policy_gradient_loss | -0.00178      |
+|    value_loss           | 0.0802        |
 -------------------------------------------
 ------------------------------------------
 | rollout/                |              |
-|    ep_len_mean          | 204          |
-|    ep_rew_mean          | 261          |
+|    ep_len_mean          | 197          |
+|    ep_rew_mean          | 251          |
 | time/                   |              |
-|    fps                  | 44           |
-|    iterations           | 20           |
-|    time_elapsed         | 458          |
-|    total_timesteps      | 20480        |
+|    fps                  | 34           |
+|    iterations           | 40           |
+|    time_elapsed         | 1177         |
+|    total_timesteps      | 40960        |
 | train/                  |              |
-|    approx_kl            | 0.0005271465 |
-|    clip_fraction        | 0.00146      |
-|    clip_range           | 0.0961       |
-|    ent_coef             | 0.0192       |
+|    approx_kl            | 0.0016000409 |
+|    clip_fraction        | 0.0627       |
+|    clip_range           | 0.092        |
+|    ent_coef             | 0.0184       |
 |    entropy_loss         | -2.19        |
-|    explained_variance   | 0.74         |
-|    learning_rate        | 9.61e-05     |
-|    loss                 | -0.0213      |
-|    n_updates            | 76           |
-|    policy_gradient_loss | -0.00355     |
-|    value_loss           | 0.0953       |
+|    explained_variance   | 0.705        |
+|    learning_rate        | 4.6e-05      |
+|    loss                 | -0.00495     |
+|    n_updates            | 156          |
+|    policy_gradient_loss | -0.0028      |
+|    value_loss           | 0.145        |
 ------------------------------------------
+-------------------------------------------
+| rollout/                |               |
+|    ep_len_mean          | 194           |
+|    ep_rew_mean          | 295           |
+| time/                   |               |
+|    fps                  | 35            |
+|    iterations           | 50            |
+|    time_elapsed         | 1434          |
+|    total_timesteps      | 51200         |
+| train/                  |               |
+|    approx_kl            | 0.00052910653 |
+|    clip_fraction        | 0.03          |
+|    clip_range           | 0.09          |
+|    ent_coef             | 0.0181        |
+|    entropy_loss         | -2.18         |
+|    explained_variance   | 0.689         |
+|    learning_rate        | 4.5e-05       |
+|    loss                 | 0.0169        |
+|    n_updates            | 196           |
+|    policy_gradient_loss | -0.00234      |
+|    value_loss           | 0.186         |
+-------------------------------------------
+------------------------------------------
+| rollout/                |              |
+|    ep_len_mean          | 194          |
+|    ep_rew_mean          | 334          |
+| time/                   |              |
+|    fps                  | 36           |
+|    iterations           | 60           |
+|    time_elapsed         | 1692         |
+|    total_timesteps      | 61440        |
+| train/                  |              |
+|    approx_kl            | 0.0009930907 |
+|    clip_fraction        | 0.0422       |
+|    clip_range           | 0.0879       |
+|    ent_coef             | 0.0177       |
+|    entropy_loss         | -2.17        |
+|    explained_variance   | 0.741        |
+|    learning_rate        | 4.4e-05      |
+|    loss                 | -0.0163      |
+|    n_updates            | 236          |
+|    policy_gradient_loss | -0.00337     |
+|    value_loss           | 0.115        |
+------------------------------------------
+------------------------------------------
+| rollout/                |              |
+|    ep_len_mean          | 193          |
+|    ep_rew_mean          | 352          |
+| time/                   |              |
+|    fps                  | 36           |
+|    iterations           | 70           |
+|    time_elapsed         | 1945         |
+|    total_timesteps      | 71680        |
+| train/                  |              |
+|    approx_kl            | 0.0004947648 |
+|    clip_fraction        | 0.0537       |
+|    clip_range           | 0.0859       |
+|    ent_coef             | 0.0173       |
+|    entropy_loss         | -2.16        |
+|    explained_variance   | 0.813        |
+|    learning_rate        | 4.29e-05     |
+|    loss                 | 0.00245      |
+|    n_updates            | 276          |
+|    policy_gradient_loss | -0.00258     |
+|    value_loss           | 0.135        |
+------------------------------------------
+------------------------------------------
+| rollout/                |              |
+|    ep_len_mean          | 190          |
+|    ep_rew_mean          | 366          |
+| time/                   |              |
+|    fps                  | 37           |
+|    iterations           | 80           |
+|    time_elapsed         | 2199         |
+|    total_timesteps      | 81920        |
+| train/                  |              |
+|    approx_kl            | 0.0010347338 |
+|    clip_fraction        | 0.0308       |
+|    clip_range           | 0.0838       |
+|    ent_coef             | 0.0169       |
+|    entropy_loss         | -2.15        |
+|    explained_variance   | 0.831        |
+|    learning_rate        | 4.19e-05     |
+|    loss                 | -0.0109      |
+|    n_updates            | 316          |
+|    policy_gradient_loss | -0.00431     |
+|    value_loss           | 0.109        |
+------------------------------------------
+------------------------------------------
+| rollout/                |              |
+|    ep_len_mean          | 186          |
+|    ep_rew_mean          | 379          |
+| time/                   |              |
+|    fps                  | 37           |
+|    iterations           | 90           |
+|    time_elapsed         | 2452         |
+|    total_timesteps      | 92160        |
+| train/                  |              |
+|    approx_kl            | 0.0017237318 |
+|    clip_fraction        | 0.0669       |
+|    clip_range           | 0.0818       |
+|    ent_coef             | 0.0165       |
+|    entropy_loss         | -2.12        |
+|    explained_variance   | 0.893        |
+|    learning_rate        | 4.09e-05     |
+|    loss                 | -0.0294      |
+|    n_updates            | 356          |
+|    policy_gradient_loss | -0.00613     |
+|    value_loss           | 0.0617       |
+------------------------------------------
+reward_shaping: info key 'x_pos' not present; corresponding term will be zero. Check the stable-retro integration's data.json.
+-----------------------------------------
+| eval/                   |             |
+|    mean_length          | 236         |
+|    mean_return          | 516         |
+|    std_return           | 0           |
+| train/                  |             |
+|    approx_kl            | 0.000824513 |
+|    clip_fraction        | 0.032       |
+|    clip_range           | 0.0801      |
+|    ent_coef             | 0.0162      |
+|    entropy_loss         | -2.09       |
+|    explained_variance   | 0.788       |
+|    learning_rate        | 4.01e-05    |
+|    loss                 | -0.0101     |
+|    n_updates            | 388         |
+|    policy_gradient_loss | -0.00299    |
+|    value_loss           | 0.11        |
+-----------------------------------------
+------------------------------------------
+| rollout/                |              |
+|    ep_len_mean          | 190          |
+|    ep_rew_mean          | 398          |
+| time/                   |              |
+|    fps                  | 37           |
+|    iterations           | 100          |
+|    time_elapsed         | 2711         |
+|    total_timesteps      | 102400       |
+| train/                  |              |
+|    approx_kl            | 0.0012615996 |
+|    clip_fraction        | 0.0427       |
+|    clip_range           | 0.0797       |
+|    ent_coef             | 0.0161       |
+|    entropy_loss         | -2.09        |
+|    explained_variance   | 0.812        |
+|    learning_rate        | 3.99e-05     |
+|    loss                 | -0.00576     |
+|    n_updates            | 396          |
+|    policy_gradient_loss | -0.00236     |
+|    value_loss           | 0.103        |
+------------------------------------------
+------------------------------------------
+| rollout/                |              |
+|    ep_len_mean          | 194          |
+|    ep_rew_mean          | 424          |
+| time/                   |              |
+|    fps                  | 28           |
+|    iterations           | 110          |
+|    time_elapsed         | 3944         |
+|    total_timesteps      | 112640       |
+| train/                  |              |
+|    approx_kl            | 0.0021325415 |
+|    clip_fraction        | 0.064        |
+|    clip_range           | 0.0777       |
+|    ent_coef             | 0.0157       |
+|    entropy_loss         | -2.06        |
+|    explained_variance   | 0.81         |
+|    learning_rate        | 3.88e-05     |
+|    loss                 | 0.00868      |
+|    n_updates            | 436          |
+|    policy_gradient_loss | -0.0039      |
+|    value_loss           | 0.103        |
+------------------------------------------
+------------------------------------------
+| rollout/                |              |
+|    ep_len_mean          | 193          |
+|    ep_rew_mean          | 433          |
+| time/                   |              |
+|    fps                  | 29           |
+|    iterations           | 120          |
+|    time_elapsed         | 4194         |
+|    total_timesteps      | 122880       |
+| train/                  |              |
+|    approx_kl            | 0.0021527153 |
+|    clip_fraction        | 0.112        |
+|    clip_range           | 0.0756       |
+|    ent_coef             | 0.0153       |
+|    entropy_loss         | -2.05        |
+|    explained_variance   | 0.907        |
+|    learning_rate        | 3.78e-05     |
+|    loss                 | -0.00209     |
+|    n_updates            | 476          |
+|    policy_gradient_loss | -0.00409     |
+|    value_loss           | 0.0757       |
+------------------------------------------
+------------------------------------------
+| rollout/                |              |
+|    ep_len_mean          | 194          |
+|    ep_rew_mean          | 440          |
+| time/                   |              |
+|    fps                  | 29           |
+|    iterations           | 130          |
+|    time_elapsed         | 4568         |
+|    total_timesteps      | 133120       |
+| train/                  |              |
+|    approx_kl            | 0.0017530987 |
+|    clip_fraction        | 0.0789       |
+|    clip_range           | 0.0736       |
+|    ent_coef             | 0.0149       |
+|    entropy_loss         | -2.04        |
+|    explained_variance   | 0.914        |
+|    learning_rate        | 3.68e-05     |
+|    loss                 | -0.00449     |
+|    n_updates            | 516          |
+|    policy_gradient_loss | -0.00307     |
+|    value_loss           | 0.0742       |
+------------------------------------------
+-----------------------------------------
+| rollout/                |             |
+|    ep_len_mean          | 194         |
+|    ep_rew_mean          | 447         |
+| time/                   |             |
+|    fps                  | 29          |
+|    iterations           | 140         |
+|    time_elapsed         | 4933        |
+|    total_timesteps      | 143360      |
+| train/                  |             |
+|    approx_kl            | 0.002207438 |
+|    clip_fraction        | 0.0957      |
+|    clip_range           | 0.0715      |
+|    ent_coef             | 0.0146      |
+|    entropy_loss         | -2.05       |
+|    explained_variance   | 0.911       |
+|    learning_rate        | 3.58e-05    |
+|    loss                 | -0.0153     |
+|    n_updates            | 556         |
+|    policy_gradient_loss | -0.00489    |
+|    value_loss           | 0.0622      |
+-----------------------------------------
+-----------------------------------------
+| rollout/                |             |
+|    ep_len_mean          | 195         |
+|    ep_rew_mean          | 467         |
+| time/                   |             |
+|    fps                  | 29          |
+|    iterations           | 150         |
+|    time_elapsed         | 5174        |
+|    total_timesteps      | 153600      |
+| train/                  |             |
+|    approx_kl            | 0.002291194 |
+|    clip_fraction        | 0.115       |
+|    clip_range           | 0.0695      |
+|    ent_coef             | 0.0142      |
+|    entropy_loss         | -2.02       |
+|    explained_variance   | 0.874       |
+|    learning_rate        | 3.47e-05    |
+|    loss                 | -0.00772    |
+|    n_updates            | 596         |
+|    policy_gradient_loss | -0.00479    |
+|    value_loss           | 0.0693      |
+-----------------------------------------
+------------------------------------------
+| rollout/                |              |
+|    ep_len_mean          | 195          |
+|    ep_rew_mean          | 478          |
+| time/                   |              |
+|    fps                  | 30           |
+|    iterations           | 160          |
+|    time_elapsed         | 5418         |
+|    total_timesteps      | 163840       |
+| train/                  |              |
+|    approx_kl            | 0.0025016498 |
+|    clip_fraction        | 0.131        |
+|    clip_range           | 0.0674       |
+|    ent_coef             | 0.0138       |
+|    entropy_loss         | -2.02        |
+|    explained_variance   | 0.945        |
+|    learning_rate        | 3.37e-05     |
+|    loss                 | -0.0153      |
+|    n_updates            | 636          |
+|    policy_gradient_loss | -0.00351     |
+|    value_loss           | 0.0536       |
+------------------------------------------
+------------------------------------------
+| rollout/                |              |
+|    ep_len_mean          | 202          |
+|    ep_rew_mean          | 503          |
+| time/                   |              |
+|    fps                  | 30           |
+|    iterations           | 170          |
+|    time_elapsed         | 5661         |
+|    total_timesteps      | 174080       |
+| train/                  |              |
+|    approx_kl            | 0.0015334531 |
+|    clip_fraction        | 0.0706       |
+|    clip_range           | 0.0654       |
+|    ent_coef             | 0.0134       |
+|    entropy_loss         | -1.99        |
+|    explained_variance   | 0.924        |
+|    learning_rate        | 3.27e-05     |
+|    loss                 | -0.00759     |
+|    n_updates            | 676          |
+|    policy_gradient_loss | -0.00356     |
+|    value_loss           | 0.0687       |
+------------------------------------------
+------------------------------------------
+| rollout/                |              |
+|    ep_len_mean          | 210          |
+|    ep_rew_mean          | 531          |
+| time/                   |              |
+|    fps                  | 31           |
+|    iterations           | 180          |
+|    time_elapsed         | 5904         |
+|    total_timesteps      | 184320       |
+| train/                  |              |
+|    approx_kl            | 0.0031464703 |
+|    clip_fraction        | 0.0972       |
+|    clip_range           | 0.0633       |
+|    ent_coef             | 0.013        |
+|    entropy_loss         | -2           |
+|    explained_variance   | 0.874        |
+|    learning_rate        | 3.17e-05     |
+|    loss                 | -0.000101    |
+|    n_updates            | 716          |
+|    policy_gradient_loss | -0.00502     |
+|    value_loss           | 0.0917       |
+------------------------------------------
+------------------------------------------
+| rollout/                |              |
+|    ep_len_mean          | 210          |
+|    ep_rew_mean          | 542          |
+| time/                   |              |
+|    fps                  | 31           |
+|    iterations           | 190          |
+|    time_elapsed         | 6146         |
+|    total_timesteps      | 194560       |
+| train/                  |              |
+|    approx_kl            | 0.0028446587 |
+|    clip_fraction        | 0.0962       |
+|    clip_range           | 0.0613       |
+|    ent_coef             | 0.0126       |
+|    entropy_loss         | -1.99        |
+|    explained_variance   | 0.941        |
+|    learning_rate        | 3.06e-05     |
+|    loss                 | -0.00825     |
+|    n_updates            | 756          |
+|    policy_gradient_loss | -0.00445     |
+|    value_loss           | 0.0553       |
+------------------------------------------
+------------------------------------------
+| eval/                   |              |
+|    mean_length          | 240          |
+|    mean_return          | 736          |
+|    std_return           | 0            |
+| train/                  |              |
+|    approx_kl            | 0.0031881323 |
+|    clip_fraction        | 0.136        |
+|    clip_range           | 0.0601       |
+|    ent_coef             | 0.0124       |
+|    entropy_loss         | -1.99        |
+|    explained_variance   | 0.877        |
+|    learning_rate        | 3e-05        |
+|    loss                 | -0.00381     |
+|    n_updates            | 780          |
+|    policy_gradient_loss | -0.00545     |
+|    value_loss           | 0.0892       |
+------------------------------------------
+-----------------------------------------
+| rollout/                |             |
+|    ep_len_mean          | 208         |
+|    ep_rew_mean          | 534         |
+| time/                   |             |
+|    fps                  | 32          |
+|    iterations           | 200         |
+|    time_elapsed         | 6395        |
+|    total_timesteps      | 204800      |
+| train/                  |             |
+|    approx_kl            | 0.002558702 |
+|    clip_fraction        | 0.127       |
+|    clip_range           | 0.0592      |
+|    ent_coef             | 0.0122      |
+|    entropy_loss         | -1.98       |
+|    explained_variance   | 0.934       |
+|    learning_rate        | 2.96e-05    |
+|    loss                 | -0.00398    |
+|    n_updates            | 796         |
+|    policy_gradient_loss | -0.00379    |
+|    value_loss           | 0.0587      |
+-----------------------------------------
+------------------------------------------
+| rollout/                |              |
+|    ep_len_mean          | 209          |
+|    ep_rew_mean          | 553          |
+| time/                   |              |
+|    fps                  | 32           |
+|    iterations           | 210          |
+|    time_elapsed         | 6638         |
+|    total_timesteps      | 215040       |
+| train/                  |              |
+|    approx_kl            | 0.0026485673 |
+|    clip_fraction        | 0.106        |
+|    clip_range           | 0.0572       |
+|    ent_coef             | 0.0118       |
+|    entropy_loss         | -1.97        |
+|    explained_variance   | 0.865        |
+|    learning_rate        | 2.86e-05     |
+|    loss                 | 0.0096       |
+|    n_updates            | 836          |
+|    policy_gradient_loss | -0.00298     |
+|    value_loss           | 0.0992       |
+------------------------------------------
+------------------------------------------
+| rollout/                |              |
+|    ep_len_mean          | 206          |
+|    ep_rew_mean          | 566          |
+| time/                   |              |
+|    fps                  | 32           |
+|    iterations           | 220          |
+|    time_elapsed         | 6883         |
+|    total_timesteps      | 225280       |
+| train/                  |              |
+|    approx_kl            | 0.0017411261 |
+|    clip_fraction        | 0.0869       |
+|    clip_range           | 0.0551       |
+|    ent_coef             | 0.0114       |
+|    entropy_loss         | -1.97        |
+|    explained_variance   | 0.914        |
+|    learning_rate        | 2.76e-05     |
+|    loss                 | 0.0103       |
+|    n_updates            | 876          |
+|    policy_gradient_loss | -0.00364     |
+|    value_loss           | 0.0741       |
+------------------------------------------
+------------------------------------------
+| rollout/                |              |
+|    ep_len_mean          | 204          |
+|    ep_rew_mean          | 561          |
+| time/                   |              |
+|    fps                  | 33           |
+|    iterations           | 230          |
+|    time_elapsed         | 7127         |
+|    total_timesteps      | 235520       |
+| train/                  |              |
+|    approx_kl            | 0.0027321787 |
+|    clip_fraction        | 0.105        |
+|    clip_range           | 0.0531       |
+|    ent_coef             | 0.0111       |
+|    entropy_loss         | -1.95        |
+|    explained_variance   | 0.935        |
+|    learning_rate        | 2.66e-05     |
+|    loss                 | 0.00039      |
+|    n_updates            | 916          |
+|    policy_gradient_loss | -0.00405     |
+|    value_loss           | 0.0651       |
+------------------------------------------
+------------------------------------------
+| rollout/                |              |
+|    ep_len_mean          | 208          |
+|    ep_rew_mean          | 573          |
+| time/                   |              |
+|    fps                  | 33           |
+|    iterations           | 240          |
+|    time_elapsed         | 7373         |
+|    total_timesteps      | 245760       |
+| train/                  |              |
+|    approx_kl            | 0.0024532797 |
+|    clip_fraction        | 0.0857       |
+|    clip_range           | 0.0511       |
+|    ent_coef             | 0.0107       |
+|    entropy_loss         | -1.93        |
+|    explained_variance   | 0.949        |
+|    learning_rate        | 2.55e-05     |
+|    loss                 | -0.0156      |
+|    n_updates            | 956          |
+|    policy_gradient_loss | -0.00489     |
+|    value_loss           | 0.0448       |
+------------------------------------------
+------------------------------------------
+| rollout/                |              |
+|    ep_len_mean          | 212          |
+|    ep_rew_mean          | 585          |
+| time/                   |              |
+|    fps                  | 33           |
+|    iterations           | 250          |
+|    time_elapsed         | 7617         |
+|    total_timesteps      | 256000       |
+| train/                  |              |
+|    approx_kl            | 0.0015223196 |
+|    clip_fraction        | 0.0771       |
+|    clip_range           | 0.049        |
+|    ent_coef             | 0.0103       |
+|    entropy_loss         | -1.94        |
+|    explained_variance   | 0.897        |
+|    learning_rate        | 2.45e-05     |
+|    loss                 | -0.000347    |
+|    n_updates            | 996          |
+|    policy_gradient_loss | -0.00387     |
+|    value_loss           | 0.0672       |
+------------------------------------------
+------------------------------------------
+| rollout/                |              |
+|    ep_len_mean          | 217          |
+|    ep_rew_mean          | 588          |
+| time/                   |              |
+|    fps                  | 33           |
+|    iterations           | 260          |
+|    time_elapsed         | 7862         |
+|    total_timesteps      | 266240       |
+| train/                  |              |
+|    approx_kl            | 0.0018896235 |
+|    clip_fraction        | 0.13         |
+|    clip_range           | 0.047        |
+|    ent_coef             | 0.00988      |
+|    entropy_loss         | -1.92        |
+|    explained_variance   | 0.945        |
+|    learning_rate        | 2.35e-05     |
+|    loss                 | -0.00417     |
+|    n_updates            | 1036         |
+|    policy_gradient_loss | -0.00325     |
+|    value_loss           | 0.0529       |
+------------------------------------------
+-----------------------------------------
+| rollout/                |             |
+|    ep_len_mean          | 221         |
+|    ep_rew_mean          | 590         |
+| time/                   |             |
+|    fps                  | 34          |
+|    iterations           | 270         |
+|    time_elapsed         | 8107        |
+|    total_timesteps      | 276480      |
+| train/                  |             |
+|    approx_kl            | 0.001427829 |
+|    clip_fraction        | 0.117       |
+|    clip_range           | 0.0449      |
+|    ent_coef             | 0.00949     |
+|    entropy_loss         | -1.94       |
+|    explained_variance   | 0.921       |
+|    learning_rate        | 2.25e-05    |
+|    loss                 | 0.00584     |
+|    n_updates            | 1076        |
+|    policy_gradient_loss | -0.00267    |
+|    value_loss           | 0.0723      |
+-----------------------------------------
+------------------------------------------
+| rollout/                |              |
+|    ep_len_mean          | 223          |
+|    ep_rew_mean          | 606          |
+| time/                   |              |
+|    fps                  | 34           |
+|    iterations           | 280          |
+|    time_elapsed         | 8352         |
+|    total_timesteps      | 286720       |
+| train/                  |              |
+|    approx_kl            | 0.0014537857 |
+|    clip_fraction        | 0.107        |
+|    clip_range           | 0.0429       |
+|    ent_coef             | 0.0091       |
+|    entropy_loss         | -1.92        |
+|    explained_variance   | 0.947        |
+|    learning_rate        | 2.14e-05     |
+|    loss                 | 0.00262      |
+|    n_updates            | 1116         |
+|    policy_gradient_loss | -0.00291     |
+|    value_loss           | 0.0569       |
+------------------------------------------
+------------------------------------------
+| rollout/                |              |
+|    ep_len_mean          | 228          |
+|    ep_rew_mean          | 629          |
+| time/                   |              |
+|    fps                  | 34           |
+|    iterations           | 290          |
+|    time_elapsed         | 8608         |
+|    total_timesteps      | 296960       |
+| train/                  |              |
+|    approx_kl            | 0.0018329863 |
+|    clip_fraction        | 0.119        |
+|    clip_range           | 0.0408       |
+|    ent_coef             | 0.00872      |
+|    entropy_loss         | -1.91        |
+|    explained_variance   | 0.887        |
+|    learning_rate        | 2.04e-05     |
+|    loss                 | 0.00717      |
+|    n_updates            | 1156         |
+|    policy_gradient_loss | -0.00346     |
+|    value_loss           | 0.0754       |
+------------------------------------------
+------------------------------------------
+| eval/                   |              |
+|    mean_length          | 302          |
+|    mean_return          | 898          |
+|    std_return           | 0            |
+| train/                  |              |
+|    approx_kl            | 0.0022216141 |
+|    clip_fraction        | 0.109        |
+|    clip_range           | 0.0402       |
+|    ent_coef             | 0.00864      |
+|    entropy_loss         | -1.9         |
+|    explained_variance   | 0.9          |
+|    learning_rate        | 2.01e-05     |
+|    loss                 | 0.0119       |
+|    n_updates            | 1168         |
+|    policy_gradient_loss | -0.00286     |
+|    value_loss           | 0.0711       |
+------------------------------------------
+------------------------------------------
+| rollout/                |              |
+|    ep_len_mean          | 229          |
+|    ep_rew_mean          | 636          |
+| time/                   |              |
+|    fps                  | 34           |
+|    iterations           | 300          |
+|    time_elapsed         | 8866         |
+|    total_timesteps      | 307200       |
+| train/                  |              |
+|    approx_kl            | 0.0020803502 |
+|    clip_fraction        | 0.117        |
+|    clip_range           | 0.0388       |
+|    ent_coef             | 0.00833      |
+|    entropy_loss         | -1.9         |
+|    explained_variance   | 0.941        |
+|    learning_rate        | 1.94e-05     |
+|    loss                 | 0.00335      |
+|    n_updates            | 1196         |
+|    policy_gradient_loss | -0.00248     |
+|    value_loss           | 0.0572       |
+------------------------------------------
+------------------------------------------
+| rollout/                |              |
+|    ep_len_mean          | 234          |
+|    ep_rew_mean          | 652          |
+| time/                   |              |
+|    fps                  | 34           |
+|    iterations           | 310          |
+|    time_elapsed         | 9120         |
+|    total_timesteps      | 317440       |
+| train/                  |              |
+|    approx_kl            | 0.0015999838 |
+|    clip_fraction        | 0.159        |
+|    clip_range           | 0.0367       |
+|    ent_coef             | 0.00794      |
+|    entropy_loss         | -1.88        |
+|    explained_variance   | 0.863        |
+|    learning_rate        | 1.84e-05     |
+|    loss                 | 0.0196       |
+|    n_updates            | 1236         |
+|    policy_gradient_loss | -0.00285     |
+|    value_loss           | 0.117        |
+------------------------------------------
+------------------------------------------
+| rollout/                |              |
+|    ep_len_mean          | 253          |
+|    ep_rew_mean          | 705          |
+| time/                   |              |
+|    fps                  | 31           |
+|    iterations           | 320          |
+|    time_elapsed         | 10257        |
+|    total_timesteps      | 327680       |
+| train/                  |              |
+|    approx_kl            | 0.0016817027 |
+|    clip_fraction        | 0.108        |
+|    clip_range           | 0.0347       |
+|    ent_coef             | 0.00755      |
+|    entropy_loss         | -1.9         |
+|    explained_variance   | 0.907        |
+|    learning_rate        | 1.73e-05     |
+|    loss                 | 0.00759      |
+|    n_updates            | 1276         |
+|    policy_gradient_loss | -0.00201     |
+|    value_loss           | 0.0703       |
+------------------------------------------
+-----------------------------------------
+| rollout/                |             |
+|    ep_len_mean          | 257         |
+|    ep_rew_mean          | 702         |
+| time/                   |             |
+|    fps                  | 32          |
+|    iterations           | 330         |
+|    time_elapsed         | 10509       |
+|    total_timesteps      | 337920      |
+| train/                  |             |
+|    approx_kl            | 0.001508354 |
+|    clip_fraction        | 0.185       |
+|    clip_range           | 0.0326      |
+|    ent_coef             | 0.00716     |
+|    entropy_loss         | -1.86       |
+|    explained_variance   | 0.805       |
+|    learning_rate        | 1.63e-05    |
+|    loss                 | 0.0226      |
+|    n_updates            | 1316        |
+|    policy_gradient_loss | -0.00068    |
+|    value_loss           | 0.124       |
+-----------------------------------------
+-------------------------------------------
+| rollout/                |               |
+|    ep_len_mean          | 261           |
+|    ep_rew_mean          | 705           |
+| time/                   |               |
+|    fps                  | 30            |
+|    iterations           | 340           |
+|    time_elapsed         | 11258         |
+|    total_timesteps      | 348160        |
+| train/                  |               |
+|    approx_kl            | 0.00066926284 |
+|    clip_fraction        | 0.108         |
+|    clip_range           | 0.0306        |
+|    ent_coef             | 0.00677       |
+|    entropy_loss         | -1.89         |
+|    explained_variance   | 0.922         |
+|    learning_rate        | 1.53e-05      |
+|    loss                 | 0.0105        |
+|    n_updates            | 1356          |
+|    policy_gradient_loss | -0.00199      |
+|    value_loss           | 0.0711        |
+-------------------------------------------
+------------------------------------------
+| rollout/                |              |
+|    ep_len_mean          | 262          |
+|    ep_rew_mean          | 714          |
+| time/                   |              |
+|    fps                  | 31           |
+|    iterations           | 350          |
+|    time_elapsed         | 11510        |
+|    total_timesteps      | 358400       |
+| train/                  |              |
+|    approx_kl            | 0.0010040135 |
+|    clip_fraction        | 0.118        |
+|    clip_range           | 0.0285       |
+|    ent_coef             | 0.00638      |
+|    entropy_loss         | -1.88        |
+|    explained_variance   | 0.905        |
+|    learning_rate        | 1.43e-05     |
+|    loss                 | 0.0152       |
+|    n_updates            | 1396         |
+|    policy_gradient_loss | -0.00261     |
+|    value_loss           | 0.0691       |
+------------------------------------------
+------------------------------------------
+| rollout/                |              |
+|    ep_len_mean          | 266          |
+|    ep_rew_mean          | 761          |
+| time/                   |              |
+|    fps                  | 31           |
+|    iterations           | 360          |
+|    time_elapsed         | 11762        |
+|    total_timesteps      | 368640       |
+| train/                  |              |
+|    approx_kl            | 0.0007437639 |
+|    clip_fraction        | 0.13         |
+|    clip_range           | 0.0265       |
+|    ent_coef             | 0.00599      |
+|    entropy_loss         | -1.87        |
+|    explained_variance   | 0.88         |
+|    learning_rate        | 1.32e-05     |
+|    loss                 | 0.0191       |
+|    n_updates            | 1436         |
+|    policy_gradient_loss | -0.00149     |
+|    value_loss           | 0.0824       |
+------------------------------------------
+------------------------------------------
+| rollout/                |              |
+|    ep_len_mean          | 259          |
+|    ep_rew_mean          | 737          |
+| time/                   |              |
+|    fps                  | 30           |
+|    iterations           | 370          |
+|    time_elapsed         | 12560        |
+|    total_timesteps      | 378880       |
+| train/                  |              |
+|    approx_kl            | 0.0010883338 |
+|    clip_fraction        | 0.121        |
+|    clip_range           | 0.0244       |
+|    ent_coef             | 0.0056       |
+|    entropy_loss         | -1.85        |
+|    explained_variance   | 0.793        |
+|    learning_rate        | 1.22e-05     |
+|    loss                 | 0.0727       |
+|    n_updates            | 1476         |
+|    policy_gradient_loss | -0.00205     |
+|    value_loss           | 0.171        |
+------------------------------------------
+-------------------------------------------
+| rollout/                |               |
+|    ep_len_mean          | 268           |
+|    ep_rew_mean          | 785           |
+| time/                   |               |
+|    fps                  | 30            |
+|    iterations           | 380           |
+|    time_elapsed         | 12809         |
+|    total_timesteps      | 389120        |
+| train/                  |               |
+|    approx_kl            | 0.00047784107 |
+|    clip_fraction        | 0.109         |
+|    clip_range           | 0.0224        |
+|    ent_coef             | 0.00521       |
+|    entropy_loss         | -1.87         |
+|    explained_variance   | 0.868         |
+|    learning_rate        | 1.12e-05      |
+|    loss                 | 0.0446        |
+|    n_updates            | 1516          |
+|    policy_gradient_loss | -0.00143      |
+|    value_loss           | 0.113         |
+-------------------------------------------
+------------------------------------------
+| rollout/                |              |
+|    ep_len_mean          | 272          |
+|    ep_rew_mean          | 780          |
+| time/                   |              |
+|    fps                  | 30           |
+|    iterations           | 390          |
+|    time_elapsed         | 13062        |
+|    total_timesteps      | 399360       |
+| train/                  |              |
+|    approx_kl            | 0.0007433403 |
+|    clip_fraction        | 0.16         |
+|    clip_range           | 0.0203       |
+|    ent_coef             | 0.00482      |
+|    entropy_loss         | -1.86        |
+|    explained_variance   | 0.912        |
+|    learning_rate        | 1.02e-05     |
+|    loss                 | 0.0249       |
+|    n_updates            | 1556         |
+|    policy_gradient_loss | -0.000778    |
+|    value_loss           | 0.093        |
+------------------------------------------
+-------------------------------------------
+| eval/                   |               |
+|    mean_length          | 265           |
+|    mean_return          | 867           |
+|    std_return           | 0             |
+| train/                  |               |
+|    approx_kl            | 0.00030986604 |
+|    clip_fraction        | 0.105         |
+|    clip_range           | 0.0201        |
+|    entropy_loss         | -1.88         |
+|    explained_variance   | 0.877         |
+|    learning_rate        | 1.01e-05      |
+|    loss                 | 0.0172        |
+|    n_updates            | 1560          |
+|    policy_gradient_loss | -0.00171      |
+|    value_loss           | 0.0741        |
+-------------------------------------------
+-------------------------------------------
+| rollout/                |               |
+|    ep_len_mean          | 267           |
+|    ep_rew_mean          | 756           |
+| time/                   |               |
+|    fps                  | 30            |
+|    iterations           | 400           |
+|    time_elapsed         | 13319         |
+|    total_timesteps      | 409600        |
+| train/                  |               |
+|    approx_kl            | 0.00034034916 |
+|    clip_fraction        | 0.0952        |
+|    clip_range           | 0.0183        |
+|    ent_coef             | 0.00444       |
+|    entropy_loss         | -1.89         |
+|    explained_variance   | 0.92          |
+|    learning_rate        | 9.14e-06      |
+|    loss                 | 0.0203        |
+|    n_updates            | 1596          |
+|    policy_gradient_loss | -0.00128      |
+|    value_loss           | 0.0737        |
+-------------------------------------------
+------------------------------------------
+| rollout/                |              |
+|    ep_len_mean          | 262          |
+|    ep_rew_mean          | 749          |
+| time/                   |              |
+|    fps                  | 30           |
+|    iterations           | 410          |
+|    time_elapsed         | 13565        |
+|    total_timesteps      | 419840       |
+| train/                  |              |
+|    approx_kl            | 0.0005390613 |
+|    clip_fraction        | 0.125        |
+|    clip_range           | 0.0162       |
+|    ent_coef             | 0.00405      |
+|    entropy_loss         | -1.89        |
+|    explained_variance   | 0.928        |
+|    learning_rate        | 8.12e-06     |
+|    loss                 | 0.0209       |
+|    n_updates            | 1636         |
+|    policy_gradient_loss | -0.000887    |
+|    value_loss           | 0.0727       |
+------------------------------------------
+-------------------------------------------
+| rollout/                |               |
+|    ep_len_mean          | 268           |
+|    ep_rew_mean          | 771           |
+| time/                   |               |
+|    fps                  | 31            |
+|    iterations           | 420           |
+|    time_elapsed         | 13842         |
+|    total_timesteps      | 430080        |
+| train/                  |               |
+|    approx_kl            | 0.00022804632 |
+|    clip_fraction        | 0.112         |
+|    clip_range           | 0.0142        |
+|    ent_coef             | 0.00366       |
+|    entropy_loss         | -1.88         |
+|    explained_variance   | 0.779         |
+|    learning_rate        | 7.09e-06      |
+|    loss                 | 0.0421        |
+|    n_updates            | 1676          |
+|    policy_gradient_loss | -0.00129      |
+|    value_loss           | 0.111         |
+-------------------------------------------
+-------------------------------------------
+| rollout/                |               |
+|    ep_len_mean          | 272           |
+|    ep_rew_mean          | 784           |
+| time/                   |               |
+|    fps                  | 28            |
+|    iterations           | 430           |
+|    time_elapsed         | 15185         |
+|    total_timesteps      | 440320        |
+| train/                  |               |
+|    approx_kl            | 0.00023916201 |
+|    clip_fraction        | 0.103         |
+|    clip_range           | 0.0121        |
+|    ent_coef             | 0.00327       |
+|    entropy_loss         | -1.89         |
+|    explained_variance   | 0.894         |
+|    learning_rate        | 6.07e-06      |
+|    loss                 | 0.0335        |
+|    n_updates            | 1716          |
+|    policy_gradient_loss | -0.00102      |
+|    value_loss           | 0.0803        |
+-------------------------------------------
+-------------------------------------------
+| rollout/                |               |
+|    ep_len_mean          | 282           |
+|    ep_rew_mean          | 813           |
+| time/                   |               |
+|    fps                  | 28            |
+|    iterations           | 440           |
+|    time_elapsed         | 15725         |
+|    total_timesteps      | 450560        |
+| train/                  |               |
+|    approx_kl            | 0.00015133776 |
+|    clip_fraction        | 0.112         |
+|    clip_range           | 0.0101        |
+|    ent_coef             | 0.00288       |
+|    entropy_loss         | -1.85         |
+|    explained_variance   | 0.82          |
+|    learning_rate        | 5.05e-06      |
+|    loss                 | 0.0553        |
+|    n_updates            | 1756          |
+|    policy_gradient_loss | -0.000959     |
+|    value_loss           | 0.134         |
+-------------------------------------------
+------------------------------------------
+| rollout/                |              |
+|    ep_len_mean          | 279          |
+|    ep_rew_mean          | 800          |
+| time/                   |              |
+|    fps                  | 28           |
+|    iterations           | 450          |
+|    time_elapsed         | 15978        |
+|    total_timesteps      | 460800       |
+| train/                  |              |
+|    approx_kl            | 6.828783e-05 |
+|    clip_fraction        | 0.145        |
+|    clip_range           | 0.00804      |
+|    ent_coef             | 0.00249      |
+|    entropy_loss         | -1.86        |
+|    explained_variance   | 0.847        |
+|    learning_rate        | 4.02e-06     |
+|    loss                 | 0.057        |
+|    n_updates            | 1796         |
+|    policy_gradient_loss | -0.000665    |
+|    value_loss           | 0.133        |
+------------------------------------------
+-------------------------------------------
+| rollout/                |               |
+|    ep_len_mean          | 274           |
+|    ep_rew_mean          | 795           |
+| time/                   |               |
+|    fps                  | 29            |
+|    iterations           | 460           |
+|    time_elapsed         | 16225         |
+|    total_timesteps      | 471040        |
+| train/                  |               |
+|    approx_kl            | 4.6523463e-05 |
+|    clip_fraction        | 0.1           |
+|    clip_range           | 0.006         |
+|    ent_coef             | 0.0021        |
+|    entropy_loss         | -1.87         |
+|    explained_variance   | 0.86          |
+|    learning_rate        | 3e-06         |
+|    loss                 | 0.0387        |
+|    n_updates            | 1836          |
+|    policy_gradient_loss | -0.000535     |
+|    value_loss           | 0.0945        |
+-------------------------------------------
+-------------------------------------------
+| rollout/                |               |
+|    ep_len_mean          | 279           |
+|    ep_rew_mean          | 802           |
+| time/                   |               |
+|    fps                  | 27            |
+|    iterations           | 470           |
+|    time_elapsed         | 17502         |
+|    total_timesteps      | 481280        |
+| train/                  |               |
+|    approx_kl            | 2.2191962e-05 |
+|    clip_fraction        | 0.135         |
+|    clip_range           | 0.00395       |
+|    ent_coef             | 0.00171       |
+|    entropy_loss         | -1.88         |
+|    explained_variance   | 0.667         |
+|    learning_rate        | 1.97e-06      |
+|    loss                 | 0.0778        |
+|    n_updates            | 1876          |
+|    policy_gradient_loss | -0.000223     |
+|    value_loss           | 0.193         |
+-------------------------------------------
+-------------------------------------------
+| rollout/                |               |
+|    ep_len_mean          | 275           |
+|    ep_rew_mean          | 775           |
+| time/                   |               |
+|    fps                  | 27            |
+|    iterations           | 480           |
+|    time_elapsed         | 17745         |
+|    total_timesteps      | 491520        |
+| train/                  |               |
+|    approx_kl            | 6.8991794e-06 |
+|    clip_fraction        | 0.168         |
+|    clip_range           | 0.0019        |
+|    ent_coef             | 0.00132       |
+|    entropy_loss         | -1.86         |
+|    explained_variance   | 0.862         |
+|    learning_rate        | 9.5e-07       |
+|    loss                 | 0.0697        |
+|    n_updates            | 1916          |
+|    policy_gradient_loss | -0.000114     |
+|    value_loss           | 0.133         |
+-------------------------------------------
+-------------------------------------------
+| eval/                   |               |
+|    mean_length          | 450           |
+|    mean_return          | 1.6e+03       |
+|    std_return           | 0             |
+| train/                  |               |
+|    approx_kl            | 2.0372681e-09 |
+|    clip_fraction        | 0.116         |
+|    clip_range           | 5.76e-05      |
+|    ent_coef             | 0.00101       |
+|    entropy_loss         | -1.89         |
+|    explained_variance   | 0.807         |
+|    learning_rate        | 2.88e-08      |
+|    loss                 | 0.0588        |
+|    n_updates            | 1952          |
+|    policy_gradient_loss | -3.43e-06     |
+|    value_loss           | 0.117         |
+-------------------------------------------
+Process SpawnProcess-5:
+Process SpawnProcess-8:
+Process SpawnProcess-3:
+Process SpawnProcess-7:
+Process SpawnProcess-4:
+Process SpawnProcess-1:
+Process SpawnProcess-2:
+Process SpawnProcess-6:
+Traceback (most recent call last):
+Traceback (most recent call last):
+Traceback (most recent call last):
+Traceback (most recent call last):
+Traceback (most recent call last):
+Traceback (most recent call last):
+Traceback (most recent call last):
+Traceback (most recent call last):
+  File "/opt/homebrew/Cellar/python@3.12/3.12.13_2/Frameworks/Python.framework/Versions/3.12/lib/python3.12/multiprocessing/process.py", line 314, in _bootstrap
+    self.run()
+  File "/opt/homebrew/Cellar/python@3.12/3.12.13_2/Frameworks/Python.framework/Versions/3.12/lib/python3.12/multiprocessing/process.py", line 108, in run
+    self._target(*self._args, **self._kwargs)
+  File "/Users/truongnguyen/Desktop/Desktop-MacbookPro/U_of_L_MSCS/truongbnguyen88_github_repos/retro-rl/.venv/lib/python3.12/site-packages/stable_baselines3/common/vec_env/subproc_vec_env.py", line 51, in _worker
+    env.close()
+  File "/Users/truongnguyen/Desktop/Desktop-MacbookPro/U_of_L_MSCS/truongbnguyen88_github_repos/retro-rl/.venv/lib/python3.12/site-packages/gymnasium/core.py", line 341, in close
+    return self.env.close()
+           ^^^^^^^^^^^^^^^^
+  File "/Users/truongnguyen/Desktop/Desktop-MacbookPro/U_of_L_MSCS/truongbnguyen88_github_repos/retro-rl/.venv/lib/python3.12/site-packages/gymnasium/core.py", line 341, in close
+    return self.env.close()
+           ^^^^^^^^^^^^^^^^
+  File "/Users/truongnguyen/Desktop/Desktop-MacbookPro/U_of_L_MSCS/truongbnguyen88_github_repos/retro-rl/.venv/lib/python3.12/site-packages/gymnasium/core.py", line 341, in close
+    return self.env.close()
+           ^^^^^^^^^^^^^^^^
+  [Previous line repeated 4 more times]
+  File "/Users/truongnguyen/Desktop/Desktop-MacbookPro/U_of_L_MSCS/truongbnguyen88_github_repos/retro-rl/.venv/lib/python3.12/site-packages/stable_retro/retro_env.py", line 309, in close
+    self.viewer.close()
+  File "/Users/truongnguyen/Desktop/Desktop-MacbookPro/U_of_L_MSCS/truongbnguyen88_github_repos/retro-rl/.venv/lib/python3.12/site-packages/stable_retro/rendering.py", line 144, in close
+    self.window.close()
+  File "/Users/truongnguyen/Desktop/Desktop-MacbookPro/U_of_L_MSCS/truongbnguyen88_github_repos/retro-rl/.venv/lib/python3.12/site-packages/pyglet/window/cocoa/__init__.py", line 285, in close
+    super(CocoaWindow, self).close()
+  File "/opt/homebrew/Cellar/python@3.12/3.12.13_2/Frameworks/Python.framework/Versions/3.12/lib/python3.12/multiprocessing/process.py", line 314, in _bootstrap
+    self.run()
+  File "/Users/truongnguyen/Desktop/Desktop-MacbookPro/U_of_L_MSCS/truongbnguyen88_github_repos/retro-rl/.venv/lib/python3.12/site-packages/pyglet/window/__init__.py", line 863, in close
+    app.event_loop.dispatch_event('on_window_close', self)
+  File "/opt/homebrew/Cellar/python@3.12/3.12.13_2/Frameworks/Python.framework/Versions/3.12/lib/python3.12/multiprocessing/process.py", line 108, in run
+    self._target(*self._args, **self._kwargs)
+  File "/Users/truongnguyen/Desktop/Desktop-MacbookPro/U_of_L_MSCS/truongbnguyen88_github_repos/retro-rl/.venv/lib/python3.12/site-packages/pyglet/event.py", line 420, in dispatch_event
+    raise e
+  File "/Users/truongnguyen/Desktop/Desktop-MacbookPro/U_of_L_MSCS/truongbnguyen88_github_repos/retro-rl/.venv/lib/python3.12/site-packages/stable_baselines3/common/vec_env/subproc_vec_env.py", line 51, in _worker
+    env.close()
+  File "/opt/homebrew/Cellar/python@3.12/3.12.13_2/Frameworks/Python.framework/Versions/3.12/lib/python3.12/multiprocessing/process.py", line 314, in _bootstrap
+    self.run()
+  File "/Users/truongnguyen/Desktop/Desktop-MacbookPro/U_of_L_MSCS/truongbnguyen88_github_repos/retro-rl/.venv/lib/python3.12/site-packages/pyglet/event.py", line 415, in dispatch_event
+    if getattr(self, event_type)(*args):
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/truongnguyen/Desktop/Desktop-MacbookPro/U_of_L_MSCS/truongbnguyen88_github_repos/retro-rl/.venv/lib/python3.12/site-packages/gymnasium/core.py", line 341, in close
+    return self.env.close()
+           ^^^^^^^^^^^^^^^^
+  File "/Users/truongnguyen/Desktop/Desktop-MacbookPro/U_of_L_MSCS/truongbnguyen88_github_repos/retro-rl/.venv/lib/python3.12/site-packages/pyglet/app/base.py", line 308, in on_window_close
+    self.exit()
+  File "/opt/homebrew/Cellar/python@3.12/3.12.13_2/Frameworks/Python.framework/Versions/3.12/lib/python3.12/multiprocessing/process.py", line 108, in run
+    self._target(*self._args, **self._kwargs)
+  File "/Users/truongnguyen/Desktop/Desktop-MacbookPro/U_of_L_MSCS/truongbnguyen88_github_repos/retro-rl/.venv/lib/python3.12/site-packages/pyglet/app/cocoa.py", line 107, in exit
+    self.platform_event_loop.notify()
+    ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.12/3.12.13_2/Frameworks/Python.framework/Versions/3.12/lib/python3.12/multiprocessing/process.py", line 314, in _bootstrap
+    self.run()
+  File "/opt/homebrew/Cellar/python@3.12/3.12.13_2/Frameworks/Python.framework/Versions/3.12/lib/python3.12/multiprocessing/process.py", line 314, in _bootstrap
+    self.run()
+  File "/opt/homebrew/Cellar/python@3.12/3.12.13_2/Frameworks/Python.framework/Versions/3.12/lib/python3.12/multiprocessing/process.py", line 108, in run
+    self._target(*self._args, **self._kwargs)
+  File "/opt/homebrew/Cellar/python@3.12/3.12.13_2/Frameworks/Python.framework/Versions/3.12/lib/python3.12/multiprocessing/process.py", line 314, in _bootstrap
+    self.run()
+AttributeError: 'CocoaAlternateEventLoop' object has no attribute 'platform_event_loop'
+  File "/opt/homebrew/Cellar/python@3.12/3.12.13_2/Frameworks/Python.framework/Versions/3.12/lib/python3.12/multiprocessing/process.py", line 314, in _bootstrap
+    self.run()
+  File "/Users/truongnguyen/Desktop/Desktop-MacbookPro/U_of_L_MSCS/truongbnguyen88_github_repos/retro-rl/.venv/lib/python3.12/site-packages/stable_baselines3/common/vec_env/subproc_vec_env.py", line 51, in _worker
+    env.close()
+  File "/opt/homebrew/Cellar/python@3.12/3.12.13_2/Frameworks/Python.framework/Versions/3.12/lib/python3.12/multiprocessing/process.py", line 108, in run
+    self._target(*self._args, **self._kwargs)
+  File "/opt/homebrew/Cellar/python@3.12/3.12.13_2/Frameworks/Python.framework/Versions/3.12/lib/python3.12/multiprocessing/process.py", line 314, in _bootstrap
+    self.run()
+  File "/Users/truongnguyen/Desktop/Desktop-MacbookPro/U_of_L_MSCS/truongbnguyen88_github_repos/retro-rl/.venv/lib/python3.12/site-packages/gymnasium/core.py", line 341, in close
+    return self.env.close()
+           ^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.12/3.12.13_2/Frameworks/Python.framework/Versions/3.12/lib/python3.12/multiprocessing/process.py", line 108, in run
+    self._target(*self._args, **self._kwargs)
+  File "/Users/truongnguyen/Desktop/Desktop-MacbookPro/U_of_L_MSCS/truongbnguyen88_github_repos/retro-rl/.venv/lib/python3.12/site-packages/gymnasium/core.py", line 341, in close
+    return self.env.close()
+           ^^^^^^^^^^^^^^^^
+  File "/Users/truongnguyen/Desktop/Desktop-MacbookPro/U_of_L_MSCS/truongbnguyen88_github_repos/retro-rl/.venv/lib/python3.12/site-packages/stable_baselines3/common/vec_env/subproc_vec_env.py", line 51, in _worker
+    env.close()
+  File "/Users/truongnguyen/Desktop/Desktop-MacbookPro/U_of_L_MSCS/truongbnguyen88_github_repos/retro-rl/.venv/lib/python3.12/site-packages/stable_baselines3/common/vec_env/subproc_vec_env.py", line 51, in _worker
+    env.close()
+  File "/Users/truongnguyen/Desktop/Desktop-MacbookPro/U_of_L_MSCS/truongbnguyen88_github_repos/retro-rl/.venv/lib/python3.12/site-packages/gymnasium/core.py", line 341, in close
+    return self.env.close()
+           ^^^^^^^^^^^^^^^^
+  File "/Users/truongnguyen/Desktop/Desktop-MacbookPro/U_of_L_MSCS/truongbnguyen88_github_repos/retro-rl/.venv/lib/python3.12/site-packages/gymnasium/core.py", line 341, in close
+    return self.env.close()
+           ^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.12/3.12.13_2/Frameworks/Python.framework/Versions/3.12/lib/python3.12/multiprocessing/process.py", line 108, in run
+    self._target(*self._args, **self._kwargs)
+  File "/Users/truongnguyen/Desktop/Desktop-MacbookPro/U_of_L_MSCS/truongbnguyen88_github_repos/retro-rl/.venv/lib/python3.12/site-packages/gymnasium/core.py", line 341, in close
+    return self.env.close()
+           ^^^^^^^^^^^^^^^^
+  File "/Users/truongnguyen/Desktop/Desktop-MacbookPro/U_of_L_MSCS/truongbnguyen88_github_repos/retro-rl/.venv/lib/python3.12/site-packages/gymnasium/core.py", line 341, in close
+    return self.env.close()
+           ^^^^^^^^^^^^^^^^
+  File "/Users/truongnguyen/Desktop/Desktop-MacbookPro/U_of_L_MSCS/truongbnguyen88_github_repos/retro-rl/.venv/lib/python3.12/site-packages/gymnasium/core.py", line 341, in close
+    return self.env.close()
+           ^^^^^^^^^^^^^^^^
+  File "/Users/truongnguyen/Desktop/Desktop-MacbookPro/U_of_L_MSCS/truongbnguyen88_github_repos/retro-rl/.venv/lib/python3.12/site-packages/gymnasium/core.py", line 341, in close
+    return self.env.close()
+           ^^^^^^^^^^^^^^^^
+  File "/Users/truongnguyen/Desktop/Desktop-MacbookPro/U_of_L_MSCS/truongbnguyen88_github_repos/retro-rl/.venv/lib/python3.12/site-packages/stable_baselines3/common/vec_env/subproc_vec_env.py", line 51, in _worker
+    env.close()
+  File "/opt/homebrew/Cellar/python@3.12/3.12.13_2/Frameworks/Python.framework/Versions/3.12/lib/python3.12/multiprocessing/process.py", line 108, in run
+    self._target(*self._args, **self._kwargs)
+  [Previous line repeated 4 more times]
+  File "/Users/truongnguyen/Desktop/Desktop-MacbookPro/U_of_L_MSCS/truongbnguyen88_github_repos/retro-rl/.venv/lib/python3.12/site-packages/stable_baselines3/common/vec_env/subproc_vec_env.py", line 51, in _worker
+    env.close()
+  File "/Users/truongnguyen/Desktop/Desktop-MacbookPro/U_of_L_MSCS/truongbnguyen88_github_repos/retro-rl/.venv/lib/python3.12/site-packages/stable_baselines3/common/vec_env/subproc_vec_env.py", line 51, in _worker
+    env.close()
+  File "/Users/truongnguyen/Desktop/Desktop-MacbookPro/U_of_L_MSCS/truongbnguyen88_github_repos/retro-rl/.venv/lib/python3.12/site-packages/gymnasium/core.py", line 341, in close
+    return self.env.close()
+           ^^^^^^^^^^^^^^^^
+  File "/Users/truongnguyen/Desktop/Desktop-MacbookPro/U_of_L_MSCS/truongbnguyen88_github_repos/retro-rl/.venv/lib/python3.12/site-packages/gymnasium/core.py", line 341, in close
+    return self.env.close()
+           ^^^^^^^^^^^^^^^^
+  File "/Users/truongnguyen/Desktop/Desktop-MacbookPro/U_of_L_MSCS/truongbnguyen88_github_repos/retro-rl/.venv/lib/python3.12/site-packages/gymnasium/core.py", line 341, in close
+    return self.env.close()
+           ^^^^^^^^^^^^^^^^
+  File "/Users/truongnguyen/Desktop/Desktop-MacbookPro/U_of_L_MSCS/truongbnguyen88_github_repos/retro-rl/.venv/lib/python3.12/site-packages/gymnasium/core.py", line 341, in close
+    return self.env.close()
+           ^^^^^^^^^^^^^^^^
+  File "/Users/truongnguyen/Desktop/Desktop-MacbookPro/U_of_L_MSCS/truongbnguyen88_github_repos/retro-rl/.venv/lib/python3.12/site-packages/gymnasium/core.py", line 341, in close
+    return self.env.close()
+           ^^^^^^^^^^^^^^^^
+  [Previous line repeated 4 more times]
+  [Previous line repeated 4 more times]
+  File "/Users/truongnguyen/Desktop/Desktop-MacbookPro/U_of_L_MSCS/truongbnguyen88_github_repos/retro-rl/.venv/lib/python3.12/site-packages/gymnasium/core.py", line 341, in close
+    return self.env.close()
+           ^^^^^^^^^^^^^^^^
+  File "/Users/truongnguyen/Desktop/Desktop-MacbookPro/U_of_L_MSCS/truongbnguyen88_github_repos/retro-rl/.venv/lib/python3.12/site-packages/gymnasium/core.py", line 341, in close
+    return self.env.close()
+           ^^^^^^^^^^^^^^^^
+  File "/Users/truongnguyen/Desktop/Desktop-MacbookPro/U_of_L_MSCS/truongbnguyen88_github_repos/retro-rl/.venv/lib/python3.12/site-packages/stable_retro/retro_env.py", line 309, in close
+    self.viewer.close()
+  File "/Users/truongnguyen/Desktop/Desktop-MacbookPro/U_of_L_MSCS/truongbnguyen88_github_repos/retro-rl/.venv/lib/python3.12/site-packages/gymnasium/core.py", line 341, in close
+    return self.env.close()
+           ^^^^^^^^^^^^^^^^
+  File "/Users/truongnguyen/Desktop/Desktop-MacbookPro/U_of_L_MSCS/truongbnguyen88_github_repos/retro-rl/.venv/lib/python3.12/site-packages/stable_retro/rendering.py", line 144, in close
+    self.window.close()
+  File "/Users/truongnguyen/Desktop/Desktop-MacbookPro/U_of_L_MSCS/truongbnguyen88_github_repos/retro-rl/.venv/lib/python3.12/site-packages/gymnasium/core.py", line 341, in close
+    return self.env.close()
+           ^^^^^^^^^^^^^^^^
+  File "/Users/truongnguyen/Desktop/Desktop-MacbookPro/U_of_L_MSCS/truongbnguyen88_github_repos/retro-rl/.venv/lib/python3.12/site-packages/stable_retro/retro_env.py", line 309, in close
+    self.viewer.close()
+  File "/Users/truongnguyen/Desktop/Desktop-MacbookPro/U_of_L_MSCS/truongbnguyen88_github_repos/retro-rl/.venv/lib/python3.12/site-packages/gymnasium/core.py", line 341, in close
+    return self.env.close()
+           ^^^^^^^^^^^^^^^^
+  File "/Users/truongnguyen/Desktop/Desktop-MacbookPro/U_of_L_MSCS/truongbnguyen88_github_repos/retro-rl/.venv/lib/python3.12/site-packages/gymnasium/core.py", line 341, in close
+    return self.env.close()
+           ^^^^^^^^^^^^^^^^
+  File "/Users/truongnguyen/Desktop/Desktop-MacbookPro/U_of_L_MSCS/truongbnguyen88_github_repos/retro-rl/.venv/lib/python3.12/site-packages/gymnasium/core.py", line 341, in close
+    return self.env.close()
+           ^^^^^^^^^^^^^^^^
+  File "/Users/truongnguyen/Desktop/Desktop-MacbookPro/U_of_L_MSCS/truongbnguyen88_github_repos/retro-rl/.venv/lib/python3.12/site-packages/stable_retro/retro_env.py", line 309, in close
+    self.viewer.close()
+  [Previous line repeated 4 more times]
+  File "/Users/truongnguyen/Desktop/Desktop-MacbookPro/U_of_L_MSCS/truongbnguyen88_github_repos/retro-rl/.venv/lib/python3.12/site-packages/pyglet/window/cocoa/__init__.py", line 285, in close
+    super(CocoaWindow, self).close()
+  [Previous line repeated 4 more times]
+  File "/Users/truongnguyen/Desktop/Desktop-MacbookPro/U_of_L_MSCS/truongbnguyen88_github_repos/retro-rl/.venv/lib/python3.12/site-packages/stable_retro/rendering.py", line 144, in close
+    self.window.close()
+  File "/Users/truongnguyen/Desktop/Desktop-MacbookPro/U_of_L_MSCS/truongbnguyen88_github_repos/retro-rl/.venv/lib/python3.12/site-packages/stable_retro/rendering.py", line 144, in close
+    self.window.close()
+  File "/Users/truongnguyen/Desktop/Desktop-MacbookPro/U_of_L_MSCS/truongbnguyen88_github_repos/retro-rl/.venv/lib/python3.12/site-packages/pyglet/window/cocoa/__init__.py", line 285, in close
+    super(CocoaWindow, self).close()
+  File "/Users/truongnguyen/Desktop/Desktop-MacbookPro/U_of_L_MSCS/truongbnguyen88_github_repos/retro-rl/.venv/lib/python3.12/site-packages/stable_retro/retro_env.py", line 309, in close
+    self.viewer.close()
+  File "/Users/truongnguyen/Desktop/Desktop-MacbookPro/U_of_L_MSCS/truongbnguyen88_github_repos/retro-rl/.venv/lib/python3.12/site-packages/pyglet/window/cocoa/__init__.py", line 285, in close
+    super(CocoaWindow, self).close()
+  File "/Users/truongnguyen/Desktop/Desktop-MacbookPro/U_of_L_MSCS/truongbnguyen88_github_repos/retro-rl/.venv/lib/python3.12/site-packages/stable_retro/retro_env.py", line 309, in close
+    self.viewer.close()
+  [Previous line repeated 4 more times]
+  File "/Users/truongnguyen/Desktop/Desktop-MacbookPro/U_of_L_MSCS/truongbnguyen88_github_repos/retro-rl/.venv/lib/python3.12/site-packages/stable_retro/rendering.py", line 144, in close
+    self.window.close()
+  [Previous line repeated 4 more times]
+  File "/Users/truongnguyen/Desktop/Desktop-MacbookPro/U_of_L_MSCS/truongbnguyen88_github_repos/retro-rl/.venv/lib/python3.12/site-packages/pyglet/window/cocoa/__init__.py", line 285, in close
+    super(CocoaWindow, self).close()
+  File "/Users/truongnguyen/Desktop/Desktop-MacbookPro/U_of_L_MSCS/truongbnguyen88_github_repos/retro-rl/.venv/lib/python3.12/site-packages/stable_retro/rendering.py", line 144, in close
+    self.window.close()
+  File "/Users/truongnguyen/Desktop/Desktop-MacbookPro/U_of_L_MSCS/truongbnguyen88_github_repos/retro-rl/.venv/lib/python3.12/site-packages/stable_retro/retro_env.py", line 309, in close
+    self.viewer.close()
+  File "/Users/truongnguyen/Desktop/Desktop-MacbookPro/U_of_L_MSCS/truongbnguyen88_github_repos/retro-rl/.venv/lib/python3.12/site-packages/pyglet/window/__init__.py", line 863, in close
+    app.event_loop.dispatch_event('on_window_close', self)
+  File "/Users/truongnguyen/Desktop/Desktop-MacbookPro/U_of_L_MSCS/truongbnguyen88_github_repos/retro-rl/.venv/lib/python3.12/site-packages/pyglet/window/__init__.py", line 863, in close
+    app.event_loop.dispatch_event('on_window_close', self)
+  File "/Users/truongnguyen/Desktop/Desktop-MacbookPro/U_of_L_MSCS/truongbnguyen88_github_repos/retro-rl/.venv/lib/python3.12/site-packages/stable_retro/rendering.py", line 144, in close
+    self.window.close()
+  File "/Users/truongnguyen/Desktop/Desktop-MacbookPro/U_of_L_MSCS/truongbnguyen88_github_repos/retro-rl/.venv/lib/python3.12/site-packages/pyglet/window/cocoa/__init__.py", line 285, in close
+    super(CocoaWindow, self).close()
+  File "/Users/truongnguyen/Desktop/Desktop-MacbookPro/U_of_L_MSCS/truongbnguyen88_github_repos/retro-rl/.venv/lib/python3.12/site-packages/pyglet/window/__init__.py", line 863, in close
+    app.event_loop.dispatch_event('on_window_close', self)
+  File "/Users/truongnguyen/Desktop/Desktop-MacbookPro/U_of_L_MSCS/truongbnguyen88_github_repos/retro-rl/.venv/lib/python3.12/site-packages/pyglet/window/__init__.py", line 863, in close
+    app.event_loop.dispatch_event('on_window_close', self)
+  File "/Users/truongnguyen/Desktop/Desktop-MacbookPro/U_of_L_MSCS/truongbnguyen88_github_repos/retro-rl/.venv/lib/python3.12/site-packages/stable_retro/retro_env.py", line 309, in close
+    self.viewer.close()
+  File "/Users/truongnguyen/Desktop/Desktop-MacbookPro/U_of_L_MSCS/truongbnguyen88_github_repos/retro-rl/.venv/lib/python3.12/site-packages/pyglet/window/cocoa/__init__.py", line 285, in close
+    super(CocoaWindow, self).close()
+  File "/Users/truongnguyen/Desktop/Desktop-MacbookPro/U_of_L_MSCS/truongbnguyen88_github_repos/retro-rl/.venv/lib/python3.12/site-packages/pyglet/event.py", line 420, in dispatch_event
+    raise e
+  File "/Users/truongnguyen/Desktop/Desktop-MacbookPro/U_of_L_MSCS/truongbnguyen88_github_repos/retro-rl/.venv/lib/python3.12/site-packages/stable_retro/rendering.py", line 144, in close
+    self.window.close()
+  File "/Users/truongnguyen/Desktop/Desktop-MacbookPro/U_of_L_MSCS/truongbnguyen88_github_repos/retro-rl/.venv/lib/python3.12/site-packages/pyglet/event.py", line 420, in dispatch_event
+    raise e
+  File "/Users/truongnguyen/Desktop/Desktop-MacbookPro/U_of_L_MSCS/truongbnguyen88_github_repos/retro-rl/.venv/lib/python3.12/site-packages/pyglet/window/__init__.py", line 863, in close
+    app.event_loop.dispatch_event('on_window_close', self)
+  File "/Users/truongnguyen/Desktop/Desktop-MacbookPro/U_of_L_MSCS/truongbnguyen88_github_repos/retro-rl/.venv/lib/python3.12/site-packages/pyglet/event.py", line 420, in dispatch_event
+    raise e
+  File "/Users/truongnguyen/Desktop/Desktop-MacbookPro/U_of_L_MSCS/truongbnguyen88_github_repos/retro-rl/.venv/lib/python3.12/site-packages/pyglet/event.py", line 420, in dispatch_event
+    raise e
+  File "/Users/truongnguyen/Desktop/Desktop-MacbookPro/U_of_L_MSCS/truongbnguyen88_github_repos/retro-rl/.venv/lib/python3.12/site-packages/pyglet/window/cocoa/__init__.py", line 285, in close
+    super(CocoaWindow, self).close()
+  File "/Users/truongnguyen/Desktop/Desktop-MacbookPro/U_of_L_MSCS/truongbnguyen88_github_repos/retro-rl/.venv/lib/python3.12/site-packages/pyglet/event.py", line 415, in dispatch_event
+    if getattr(self, event_type)(*args):
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/truongnguyen/Desktop/Desktop-MacbookPro/U_of_L_MSCS/truongbnguyen88_github_repos/retro-rl/.venv/lib/python3.12/site-packages/pyglet/window/__init__.py", line 863, in close
+    app.event_loop.dispatch_event('on_window_close', self)
+  File "/Users/truongnguyen/Desktop/Desktop-MacbookPro/U_of_L_MSCS/truongbnguyen88_github_repos/retro-rl/.venv/lib/python3.12/site-packages/pyglet/app/base.py", line 308, in on_window_close
+    self.exit()
+  File "/Users/truongnguyen/Desktop/Desktop-MacbookPro/U_of_L_MSCS/truongbnguyen88_github_repos/retro-rl/.venv/lib/python3.12/site-packages/pyglet/event.py", line 420, in dispatch_event
+    raise e
+  File "/Users/truongnguyen/Desktop/Desktop-MacbookPro/U_of_L_MSCS/truongbnguyen88_github_repos/retro-rl/.venv/lib/python3.12/site-packages/pyglet/app/cocoa.py", line 107, in exit
+    self.platform_event_loop.notify()
+    ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/truongnguyen/Desktop/Desktop-MacbookPro/U_of_L_MSCS/truongbnguyen88_github_repos/retro-rl/.venv/lib/python3.12/site-packages/pyglet/event.py", line 415, in dispatch_event
+    if getattr(self, event_type)(*args):
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/truongnguyen/Desktop/Desktop-MacbookPro/U_of_L_MSCS/truongbnguyen88_github_repos/retro-rl/.venv/lib/python3.12/site-packages/pyglet/event.py", line 420, in dispatch_event
+    raise e
+  File "/Users/truongnguyen/Desktop/Desktop-MacbookPro/U_of_L_MSCS/truongbnguyen88_github_repos/retro-rl/.venv/lib/python3.12/site-packages/pyglet/app/base.py", line 308, in on_window_close
+    self.exit()
+  File "/Users/truongnguyen/Desktop/Desktop-MacbookPro/U_of_L_MSCS/truongbnguyen88_github_repos/retro-rl/.venv/lib/python3.12/site-packages/pyglet/event.py", line 415, in dispatch_event
+    if getattr(self, event_type)(*args):
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/truongnguyen/Desktop/Desktop-MacbookPro/U_of_L_MSCS/truongbnguyen88_github_repos/retro-rl/.venv/lib/python3.12/site-packages/pyglet/event.py", line 415, in dispatch_event
+    if getattr(self, event_type)(*args):
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'CocoaAlternateEventLoop' object has no attribute 'platform_event_loop'
+  File "/Users/truongnguyen/Desktop/Desktop-MacbookPro/U_of_L_MSCS/truongbnguyen88_github_repos/retro-rl/.venv/lib/python3.12/site-packages/pyglet/event.py", line 415, in dispatch_event
+    if getattr(self, event_type)(*args):
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/truongnguyen/Desktop/Desktop-MacbookPro/U_of_L_MSCS/truongbnguyen88_github_repos/retro-rl/.venv/lib/python3.12/site-packages/pyglet/window/__init__.py", line 863, in close
+    app.event_loop.dispatch_event('on_window_close', self)
+  File "/Users/truongnguyen/Desktop/Desktop-MacbookPro/U_of_L_MSCS/truongbnguyen88_github_repos/retro-rl/.venv/lib/python3.12/site-packages/pyglet/app/cocoa.py", line 107, in exit
+    self.platform_event_loop.notify()
+    ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/truongnguyen/Desktop/Desktop-MacbookPro/U_of_L_MSCS/truongbnguyen88_github_repos/retro-rl/.venv/lib/python3.12/site-packages/pyglet/event.py", line 415, in dispatch_event
+    if getattr(self, event_type)(*args):
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/truongnguyen/Desktop/Desktop-MacbookPro/U_of_L_MSCS/truongbnguyen88_github_repos/retro-rl/.venv/lib/python3.12/site-packages/pyglet/app/base.py", line 308, in on_window_close
+    self.exit()
+  File "/Users/truongnguyen/Desktop/Desktop-MacbookPro/U_of_L_MSCS/truongbnguyen88_github_repos/retro-rl/.venv/lib/python3.12/site-packages/pyglet/app/base.py", line 308, in on_window_close
+    self.exit()
+  File "/Users/truongnguyen/Desktop/Desktop-MacbookPro/U_of_L_MSCS/truongbnguyen88_github_repos/retro-rl/.venv/lib/python3.12/site-packages/pyglet/app/base.py", line 308, in on_window_close
+    self.exit()
+  File "/Users/truongnguyen/Desktop/Desktop-MacbookPro/U_of_L_MSCS/truongbnguyen88_github_repos/retro-rl/.venv/lib/python3.12/site-packages/pyglet/app/cocoa.py", line 107, in exit
+    self.platform_event_loop.notify()
+    ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/truongnguyen/Desktop/Desktop-MacbookPro/U_of_L_MSCS/truongbnguyen88_github_repos/retro-rl/.venv/lib/python3.12/site-packages/pyglet/event.py", line 420, in dispatch_event
+    raise e
+AttributeError: 'CocoaAlternateEventLoop' object has no attribute 'platform_event_loop'
+  File "/Users/truongnguyen/Desktop/Desktop-MacbookPro/U_of_L_MSCS/truongbnguyen88_github_repos/retro-rl/.venv/lib/python3.12/site-packages/pyglet/event.py", line 415, in dispatch_event
+    if getattr(self, event_type)(*args):
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/truongnguyen/Desktop/Desktop-MacbookPro/U_of_L_MSCS/truongbnguyen88_github_repos/retro-rl/.venv/lib/python3.12/site-packages/pyglet/app/base.py", line 308, in on_window_close
+    self.exit()
+  File "/Users/truongnguyen/Desktop/Desktop-MacbookPro/U_of_L_MSCS/truongbnguyen88_github_repos/retro-rl/.venv/lib/python3.12/site-packages/pyglet/app/cocoa.py", line 107, in exit
+    self.platform_event_loop.notify()
+    ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/truongnguyen/Desktop/Desktop-MacbookPro/U_of_L_MSCS/truongbnguyen88_github_repos/retro-rl/.venv/lib/python3.12/site-packages/pyglet/app/base.py", line 308, in on_window_close
+    self.exit()
+AttributeError: 'CocoaAlternateEventLoop' object has no attribute 'platform_event_loop'
+AttributeError: 'CocoaAlternateEventLoop' object has no attribute 'platform_event_loop'
+  File "/Users/truongnguyen/Desktop/Desktop-MacbookPro/U_of_L_MSCS/truongbnguyen88_github_repos/retro-rl/.venv/lib/python3.12/site-packages/pyglet/app/cocoa.py", line 107, in exit
+    self.platform_event_loop.notify()
+    ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/truongnguyen/Desktop/Desktop-MacbookPro/U_of_L_MSCS/truongbnguyen88_github_repos/retro-rl/.venv/lib/python3.12/site-packages/pyglet/app/cocoa.py", line 107, in exit
+    self.platform_event_loop.notify()
+    ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/truongnguyen/Desktop/Desktop-MacbookPro/U_of_L_MSCS/truongbnguyen88_github_repos/retro-rl/.venv/lib/python3.12/site-packages/pyglet/app/cocoa.py", line 107, in exit
+    self.platform_event_loop.notify()
+    ^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'CocoaAlternateEventLoop' object has no attribute 'platform_event_loop'
+AttributeError: 'CocoaAlternateEventLoop' object has no attribute 'platform_event_loop'
+AttributeError: 'CocoaAlternateEventLoop' object has no attribute 'platform_event_loop'
+[05/25/26 22:09:14] INFO     training complete; final_step=500736
+                             best_return=1601.8499999999913
+best checkpoint: outputs/checkpoints/ppo_airstriker_v12_smoke/best.zip

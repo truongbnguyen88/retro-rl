@@ -15,18 +15,14 @@
 #   1. features_extractor impala → temporal_attn  (per-frame Nature-CNN tokens →
 #      self-attention over the 8-frame window → last-token readout)
 #   2. frame_stack 4 → 8  (in configs/env_v12.yaml)
+#   3. learning_rate 1e-4 → 5e-5  (two 500K smokes showed identical ~1600 ceiling
+#      at both LRs; 5e-5 gave marginally better 500K return and smoother early
+#      curve — used here for the full run)
+#   4. total_timesteps 4M → 6M  (match v11's budget; give the architecture
+#      maximum runway given the smoke showed steep climbing at 500K cutoff)
 #
-# Unchanged from v9: algorithm=ppo, normalize_reward=true, learning_rate=1e-4,
-# ent_coef schedule, n_steps/batch/epochs, total_timesteps=4M.
-#
-# Attention hyperparameters (n_heads=4, n_layers=2, dim_feedforward=2x) are baked
-# into the extractor, not exposed here — promote to config only if a smoke shows
-# they need tuning.
-#
-# NOTE: validate with configs/ppo_v12_smoke.yaml (500K) before the full 4M run.
-# Smoke GO gate: explained_variance > 0.85, clip_fraction < 0.25,
-# eval/mean_return in the neighbourhood of v9 smoke's 2608 @ 500K, fps >= ~25.
-# If EV pins at 0, drop learning_rate 1e-4 → 5e-5 (same ladder as v9 smoke).
+# Unchanged from v9: algorithm=ppo, normalize_reward=true, ent_coef schedule
+# (anneals 0.02→0.001 over total_timesteps), n_steps/batch/epochs.
 
 extends: configs/ppo_v9.yaml
 
@@ -35,3 +31,7 @@ env_config: configs/env_v12.yaml
 
 features_extractor: temporal_attn
 features_dim: 256
+total_timesteps: 6000000
+
+ppo:
+  learning_rate: 5.0e-5
