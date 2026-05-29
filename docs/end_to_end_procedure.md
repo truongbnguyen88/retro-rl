@@ -2389,7 +2389,10 @@ If it climbs above 0.5, the right intervention is lowering LR or reducing
 
 ## Appendix: v12 — Temporal Attention (transformer over the frame window)
 
-**Status: smoke running. Hypothesis under test.**
+**Status: complete. Best eval return 7609 @ 5.3M — new numerical best, +6.2% over
+v9 (see B.7). The hypothesis held: attention over the frame window beats pure
+IMPALA feature learning, at the cost of ~2× the sample budget — and B.2.8 explains
+*why* that sample-cost tax is the expected price of the weaker inductive bias.**
 
 v10 and v11 asked whether a *recurrent* memory (LSTM) could beat the stateless
 v9 baseline. Both fell short, and the post-mortem (A.1–A.6 above, plus the v11
@@ -2445,7 +2448,48 @@ that made frame stacking work for v9.
 ### B.2 Transformer fundamentals — the mathematics of self-attention
 
 This section builds the transformer encoder from scratch. Everything v12 uses is
-here; nothing else is needed.
+here; nothing else is needed. It is written to stand alone as a transformer
+tutorial — read B.2.0–B.2.9 even if you skip the rest.
+
+#### B.2.0 Origins and the encoder-only design
+
+The transformer was introduced in *"Attention Is All You Need"* (Vaswani et al.,
+2017) for machine translation. The original is an **encoder-decoder**: an encoder
+maps the source sentence to a set of contextual token vectors, and a decoder
+generates the target one token at a time, attending both to its own past outputs
+(*self-attention*) and to the encoder's outputs (*cross-attention*). Three
+families descend from it, and the distinction matters for understanding v12:
+
+| Family | Example | Attention | Used for |
+|---|---|---|---|
+| **Encoder-only** | BERT, ViT, **v12** | full (bidirectional) self-attention | understanding a fixed input → one representation |
+| **Decoder-only** | GPT, Llama | *causal* (masked) self-attention | autoregressive generation |
+| **Encoder-decoder** | original Transformer, T5 | encoder self-attn + decoder cross-attn | sequence-to-sequence |
+
+v12 is **encoder-only**, the same family as the **Vision Transformer (ViT)**.
+The analogy is exact and worth holding onto:
+
+- **ViT** splits an image into a grid of patches, linearly embeds each patch into
+  a token, adds positional embeddings, and runs a transformer encoder; it reads a
+  classification token (or pools) for the final representation.
+- **v12** splits the *observation* into its `K=8` frames, embeds each frame into a
+  token *with a shared CNN* (a richer embedder than ViT's linear patch projection,
+  because a frame has spatial structure worth convolving), adds positional
+  embeddings, runs a transformer encoder, and reads the last token.
+
+So v12 is "ViT over time instead of over space": the sequence axis is the
+**temporal** frame axis, not spatial patches. This framing also tells you what to
+expect — ViT's well-known property is that it **needs more data than a CNN** to
+reach the same accuracy, then surpasses it at scale. B.2.8 makes that precise and
+ties it directly to v12's 2× sample cost.
+
+**Causal vs full attention.** A *causal mask* forbids token `i` from attending to
+any token `j > i` (the future), which is mandatory for autoregressive generation
+(GPT must not peek ahead). v12 uses **full, non-causal** attention: every frame
+may attend to every other. This is allowed because v12 is not generating a
+sequence — it reads one observation and emits one feature vector. (B.3 notes the
+subtlety that since we only *read* the last token, causal and full attention give
+the identical result there anyway.)
 
 #### B.2.1 Tokens
 
@@ -2477,6 +2521,35 @@ The mental model: token `i`'s **query** `q_i` is compared against every token's
 gets mixed into token `i`'s output. This is a soft dictionary lookup where the
 match is a learned dot product instead of an exact key equality.
 
+**Why three separate projections, and why the asymmetry matters.** A natural
+question: why not just use the token embedding `x_i` directly for all three roles?
+Two reasons.
+
+1. **Query and key play different roles, so they need different projections.**
+   "What frame 7 is looking for" (its query) is a different question from "what
+   label frame 3 advertises" (its key). Tying them (`W_Q = W_K`) would force the
+   score matrix `S = XW_Q W_Kᵀ Xᵀ` to be **symmetric** (`S_{ij}=S_{ji}`), i.e.
+   "`i` attends to `j`" exactly as much as "`j` attends to `i`." Temporal relations
+   are *directional* — the current frame should attend strongly to the previous
+   frame to read velocity, but the previous frame need not attend back. Separate
+   `W_Q, W_K` let the learned bilinear form `q_i·k_j = x_iᵀ(W_Q W_Kᵀ)x_j` be
+   **asymmetric**, which is what directional relations require.
+
+2. **The value is a separate "what to retrieve" channel.** `W_V` decouples *how
+   tokens are matched* (Q·K) from *what information flows once matched* (V). A
+   frame might be matched on its bullet positions but contribute its motion
+   features to the output — the matching content and the retrieved content need
+   not be the same, so they get their own subspace.
+
+**The kernel-smoothing view (optional, for intuition).** Attention is exactly a
+**Nadaraya–Watson kernel regression**: the output `Out_i = Σ_j A_{ij} v_j` is a
+kernel-weighted average of the values, with kernel weight `A_{ij} ∝
+exp(q_i·k_j/√d_k)` — an (unnormalized) Gaussian-like similarity kernel in the
+projected space. Self-attention is "smoothing each token toward the values of the
+tokens it is most similar to, where similarity is learned." This is why attention
+is sometimes called a *soft, content-addressable* memory: it is associative
+recall, differentiable end-to-end.
+
 #### B.2.3 Scaled dot-product attention — the core formula
 
 ```
@@ -2504,14 +2577,51 @@ attends to token `j`." These are the **attention weights**.
 a convex combination of all tokens' value vectors, weighted by relevance.
 
 **Why divide by `√d_k`?** The dot product `q_i·k_j = Σ_{m=1}^{d_k} q_{im}k_{jm}`
-sums `d_k` product terms. If the components are roughly independent with unit
-variance, the sum has variance `d_k` and thus standard deviation `√d_k`. Left
-unscaled, the scores grow with `d_k`, pushing softmax into its **saturated**
-regime where one weight ≈ 1 and the rest ≈ 0. In that regime the softmax
-Jacobian is nearly zero, so **gradients vanish** and the layer can't learn which
-tokens to attend to. Dividing by `√d_k` renormalizes the score variance back to
-~1, keeping softmax in its sensitive, high-gradient range. This is the single
-most important numerical detail in the attention mechanism.
+sums `d_k` product terms. Make the standard assumption that the components are
+independent, mean-0, unit-variance. Then:
+
+```
+E[q_i·k_j]   = Σ_m E[q_{im}] E[k_{jm}]                 = 0
+Var(q_i·k_j) = Σ_m Var(q_{im} k_{jm})
+             = Σ_m E[q_{im}²] E[k_{jm}²]   (indep, mean 0)
+             = Σ_m 1·1  =  d_k     ⇒  std = √d_k
+```
+
+So the raw scores have standard deviation `√d_k`. Left unscaled, the scores grow
+with `d_k`, pushing softmax into its **saturated** regime where one weight ≈ 1 and
+the rest ≈ 0. In that regime the softmax Jacobian is nearly zero, so **gradients
+vanish** and the layer can't learn which tokens to attend to. Dividing by `√d_k`
+renormalizes the score variance back to ~1, keeping softmax in its sensitive,
+high-gradient range. This is the single most important numerical detail in the
+attention mechanism.
+
+**Softmax temperature view.** `softmax(S/τ)` with temperature `τ` interpolates
+between a uniform average (`τ→∞`, all weights equal) and a hard argmax (`τ→0`, one
+weight = 1). The `√d_k` divisor is precisely a temperature that holds the
+*effective sharpness* constant as the head dimension changes — without it, wider
+heads would silently run "colder" (sharper, near-argmax) and stop learning.
+
+**A worked micro-example (`K=3`, `d_k=2`).** Suppose after projection token 1's
+query and the three keys are:
+
+```
+q₁ = [1, 0]      k₁ = [1, 0]     k₂ = [0, 1]     k₃ = [1, 1]
+```
+
+Step 1 — scores (dot products):  `q₁·k₁ = 1`, `q₁·k₂ = 0`, `q₁·k₃ = 1`.
+Step 2 — scale by `√d_k = √2 ≈ 1.414`:  `[0.707, 0, 0.707]`.
+Step 3 — softmax:  `exp([0.707, 0, 0.707]) = [2.03, 1.00, 2.03]`, sum `= 5.06`, so
+
+```
+A₁ = [0.401, 0.198, 0.401]
+```
+
+Token 1 splits its attention ~40/20/40: it attends most to tokens 1 and 3 (whose
+keys align with its query `[1,0]`) and least to token 2 (orthogonal key `[0,1]`).
+Its output is the convex combination `0.401·v₁ + 0.198·v₂ + 0.401·v₃`. Repeating
+this for `q₂, q₃` fills the `3×3` weight matrix `A`, one softmax-normalized row per
+query. In v12 this is an `8×8` matrix per head — one row per frame, each row a
+distribution over which of the 8 frames that frame pulls information from.
 
 #### B.2.4 Multi-head attention
 
@@ -2530,6 +2640,28 @@ with `W_O ∈ ℝ^{d×d}`. v12 uses `d=256`, `H=4`, so each head works in `d_k=6
 dimensions. Each head has its own `W_Q^h, W_K^h, W_V^h`, so the four heads learn
 four different "what is relevant" relations over the same 8 frames.
 
+**Why split into subspaces instead of one big head?** Two reasons, one
+expressive, one statistical:
+
+- **A single softmax is unimodal-ish — it tends to commit.** One attention head
+  produces *one* `K×K` weight matrix; because of the softmax it struggles to
+  simultaneously "attend strongly to frame 7 *and* to frame 2 for *different*
+  reasons." Splitting into `H` heads gives `H` independent weight matrices, so the
+  layer can track several relations at once — e.g. head A locks onto the
+  immediately previous frame (instantaneous velocity), head B onto ~6 frames back
+  (a spawn cycle about to repeat), head C onto the current frame itself
+  (pass-through). The outputs are concatenated, so the heads are *additive
+  channels of relevance*, not competing for one budget.
+
+- **Cost is held constant.** Because `d_k = d/H`, the total work `H·(K·d_k²) =
+  K·d·d_k` and parameter count are (to first order) independent of `H`: you are
+  *reshaping* the same `d`-dimensional computation into `H` parallel `d/H`-wide
+  ones, not adding compute. The trade is rank-vs-count: each head's `QKᵀ` score
+  map is at most rank `d_k=64`, so very fine-grained single-relation matching is
+  slightly weaker, but you get four relations instead of one — empirically a good
+  trade. `W_O` then linearly recombines the concatenated head outputs back into
+  the `d`-dimensional residual stream.
+
 #### B.2.5 Position: attention is order-blind by default
 
 Self-attention as defined is **permutation-equivariant**: permute the input
@@ -2547,14 +2679,40 @@ X' = X + P        P ∈ ℝ^{K×d}, row P_k encodes "this is frame k"
 
 Two common choices: fixed **sinusoidal** encodings (original Transformer, good
 for extrapolating to unseen lengths) or **learned** positional embeddings (a
-trainable parameter, one `d`-vector per position). v12 uses **learned**
-embeddings — the window length `K=8` is fixed, so there is nothing to extrapolate
-to, and a learnable per-slot bias is the simplest thing that works:
+trainable parameter, one `d`-vector per position).
+
+**Sinusoidal encoding (for reference).** The original Transformer defines, for
+position `pos` and embedding dimension index `i ∈ [0, d)`:
+
+```
+PE(pos, 2i)   = sin( pos / 10000^{2i/d} )
+PE(pos, 2i+1) = cos( pos / 10000^{2i/d} )
+```
+
+Each dimension is a sinusoid whose wavelength grows geometrically from `2π` (high
+`i`-frequency, fine position) to `~10000·2π` (low frequency, coarse position) — a
+"binary clock in continuous form." Its elegant property: for any fixed offset `k`,
+`PE(pos+k)` is a **linear function** of `PE(pos)` (a rotation by a matrix that
+depends only on `k`, from the angle-addition identities). That means a downstream
+linear map can express "attend `k` positions back" *independent of absolute
+position* — relative offsets become linearly decodable. It also extrapolates to
+sequence lengths unseen in training, since the formula is defined for all `pos`.
+
+**v12 uses learned embeddings** — a trainable parameter, one `d`-vector per slot.
+The window length `K=8` is fixed, so there is nothing to extrapolate to, and a
+learnable per-slot bias is the simplest thing that works; the network discovers
+whatever positional code is useful for reading frame order:
 
 ```python
 self.pos_emb = nn.Parameter(torch.zeros(1, K, d))   # learned, K×d
 tokens = tokens + self.pos_emb                       # inject order
 ```
+
+(A note on the modern alternative: large LLMs increasingly use **rotary position
+embeddings (RoPE)**, which rotate Q and K by position-dependent angles so that the
+*dot product* `q_i·k_j` depends only on the relative offset `i−j`. v12 doesn't need
+it — at `K=8` a learned table is trivial — but it's the same underlying goal as the
+sinusoidal linearity property above: make relative position cheap to read.)
 
 #### B.2.6 The transformer encoder layer
 
@@ -2593,9 +2751,35 @@ Each piece, and why it is there:
 - **The FFN** is a 2-layer MLP applied to **each token independently** (same
   weights for all positions). Attention *mixes information across tokens*; the
   FFN then *transforms each token's mixed representation* nonlinearly. v12 uses
-  `d_ff = 2d = 512` and a **GELU** activation (a smooth ReLU variant standard in
-  transformers). Roughly: attention = "communication between frames," FFN =
-  "computation within a frame."
+  `d_ff = 2d = 512` and a **GELU** activation. Roughly: attention = "communication
+  between frames," FFN = "computation within a frame." The FFN is also where most
+  of a transformer's parameters and arguably its stored "knowledge" live — it is a
+  per-token nonlinear feature transform, the wider `d_ff` giving it room to compute.
+
+- **GELU** (Gaussian Error Linear Unit) is `GELU(x) = x·Φ(x)`, where `Φ` is the
+  standard-normal CDF — i.e. it scales each input by the probability that a
+  standard Gaussian is below it. Unlike ReLU's hard gate at 0, GELU is **smooth
+  and non-monotonic** near the origin (it dips slightly negative for small
+  negative `x`), which gives cleaner gradients and is the de-facto default in
+  transformers (BERT, GPT). A common tanh approximation:
+  `0.5x(1 + tanh[√(2/π)(x + 0.044715x³)])`.
+
+**The residual-stream view (a useful modern mental model).** Pre-LN transformers
+are clearest seen as a **residual stream**: a `d`-dimensional vector per token that
+flows straight from input to output, and each sublayer *reads* a normalized copy
+of it, *computes* an update, and *adds* that update back. Attention writes
+"information gathered from other frames"; the FFN writes "nonlinear features of
+this frame." Nothing overwrites the stream — sublayers only add to it — which is
+exactly why gradients flow cleanly (the `+1` from each residual) and why stacking
+more layers degrades gracefully rather than catastrophically. The final readout
+(B.3) just takes one token off this stream.
+
+**A note on normalization variants.** LayerNorm subtracts the mean and divides by
+the standard deviation of each token's `d` features, then applies a learned scale
+`γ` and shift `β`. Many recent LLMs replace it with **RMSNorm**
+(`x / √(mean(x²)+ε) · γ` — no mean-centering, no bias), which is cheaper and works
+about as well. v12 uses standard LayerNorm because that is what PyTorch's
+`nn.TransformerEncoderLayer` provides; at this scale the difference is immaterial.
 
 #### B.2.7 Computational cost
 
@@ -2612,6 +2796,85 @@ is **cheap relative to the per-frame CNN** (B.3); the real compute cost of v12 i
 encoding `K=8` frames through the CNN, not the attention. Note also that, unlike
 the LSTM's inherently **sequential** `O(K)` recurrence, attention is a couple of
 **parallel** matrix multiplies — there is no step-by-step unroll.
+
+**The `O(K²)` wall (why it doesn't bite us, but matters in general).** The score
+matrix `S = QKᵀ` is `K×K`, so attention's compute and memory scale **quadratically
+in sequence length**. At `K=8` this is a rounding error, but it is *the* defining
+scaling problem of transformers: doubling the context length quadruples attention
+cost. This is why long-context LLMs invest in **efficient-attention** variants —
+FlashAttention (an exact, IO-aware kernel that avoids materializing the full `K×K`
+matrix), sparse/local attention (each token attends only to a neighborhood),
+linear attention, etc. v12 needs none of this: the window is deliberately short
+(`K=8` ≈ 1.06 s), chosen to cover Airstriker's relevant temporal structure, not to
+push context length.
+
+#### B.2.8 Inductive bias and why transformers are data-hungry
+
+This subsection is the conceptual payoff — it explains v12's central empirical
+result (the ~2× sample cost, B.7) from first principles.
+
+An **inductive bias** is a built-in assumption that constrains *which* functions a
+model can easily represent, before it sees any data. Strong, *correct* biases let
+a model generalize from little data (the hypothesis space is small and well-aimed);
+weak biases give a larger hypothesis space — a higher ceiling — but require more
+data to pin down the right function. This is the classic bias–variance lever cast
+in architectural terms.
+
+Contrast the three architectures this project has used by their built-in biases:
+
+| Architecture | Built-in biases | Consequence |
+|---|---|---|
+| **CNN** (v9 IMPALA) | **locality** (a kernel sees only a neighborhood), **translation equivariance + weight sharing** (the same filter slides everywhere), spatial **hierarchy** | strong, well-matched priors for pixels → learns from *less* data; ceiling capped by the priors |
+| **LSTM** (v10/v11) | **sequential recency / Markovian recurrence** (state summarizes the past, updated step-by-step) | a temporal prior, but couples memory to a state that must be built up — hence the cold-start defect |
+| **Transformer** (v12) | **almost none** — self-attention is permutation-equivariant and *fully connected* across tokens from layer 1; the *only* injected structure is the positional embedding | maximally flexible (any token can read any token) → higher ceiling, but must **learn** the relational structure that the CNN gets for free → needs *more* data |
+
+The CNN, in particular, gets temporal structure *for free*: v9's first conv layer
+mixes the 4 stacked frames by position, hard-wiring "compare adjacent frames"
+(which *is* velocity) into the architecture. v12's attention layers start
+**permutation-equivariant** — they don't even know frame order until the
+positional embedding is learned — and must *discover* from the reward signal which
+frames to compare and how. That discovery is exactly what costs the extra samples.
+
+This is the **Vision Transformer story** (B.2.0) repeating in miniature: ViT
+underperforms CNNs on small datasets and overtakes them only at large scale,
+precisely because it trades a CNN's hard-wired spatial priors for flexibility that
+must be paid for in data. v12 reproduces it: it needed ~5.3M steps to reach
+(and just exceed) what v9's IMPALA reached at ~2.7M. The **+6.2% ceiling gain is
+the flexibility payoff**; the **2× sample cost is the weak-bias tax**. Both are
+the textbook prediction — v12 is a clean confirmation, not a surprise.
+
+The practical corollary (already in B.7): when integrating a new game, start with
+the high-bias, sample-efficient CNN; reach for attention only when you have the
+step budget to amortize its data appetite and need the extra ceiling.
+
+#### B.2.9 Training dynamics — LR sensitivity, warmup, and the smoke plateau
+
+Transformers are notoriously **sensitive to the learning-rate schedule**. The
+original Transformer required a hand-shaped **warmup**: ramp the LR up linearly for
+the first few thousand steps, then decay it (`∝ 1/√step`). The reason traces to
+post-LN's gradient scaling, which can be large and ill-conditioned early in
+training. **Pre-LN** (B.2.6, what v12 uses) substantially fixes this — it keeps the
+residual path un-normalized and makes early gradients well-behaved, which is why
+pre-LN transformers can often train *without* warmup. But residual sensitivity
+remains, and attention has its own slow-start dynamic:
+
+- At initialization the `W_Q, W_K` projections are small/random, so all scores
+  `q_i·k_j ≈ 0`, so **every attention row is ≈ uniform** — each token just averages
+  all frames. In that regime attention carries almost no signal; the heads have not
+  yet *differentiated* into the distinct relations of B.2.4. The network must first
+  push the query/key projections away from this uniform fixed point before the
+  temporal read becomes useful.
+
+This is visible in v12's smoke (B.7's preamble): at `lr=1e-4` the return
+**plateaued from ~200K–300K steps, then broke out sharply** — the signature of
+heads sitting near-uniform, then differentiating once the projections grew enough
+to make scores informative. Dropping to **`lr=5e-5`** for the full run gave a
+smoother early trajectory (less thrash while the heads specialize) at the cost of
+slightly slower wall-clock progress — a deliberate trade given the 6M budget. The
+plateau was *not* a sign the architecture couldn't learn; it was the
+representation-learning phase that B.2.8 predicts a low-bias model must pay up
+front. The late-run collapse-and-recover at 5.9M (B.7) is a separate phenomenon —
+the entropy schedule reaching its floor — not a transformer-specific dynamic.
 
 ### B.3 The v12 architecture — `TemporalAttentionExtractor`
 
