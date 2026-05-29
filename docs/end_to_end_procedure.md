@@ -1927,7 +1927,7 @@ Streamlit frontend pulls from backend API → Training, Play, Compare pages
 | v9 | IMPALA ResNet + action_repeat=8 + VecNormalize + LR=1e-4 | **7168 @ 2.7M** (best — clears the game) |
 | v10 | RecurrentPPO + LSTM(256) + frame_stack=1 | 1993 @ 4M (retired — cold-start blindness) |
 | v11 | RecurrentPPO + LSTM(256) + frame_stack=4 + n_epochs=2 | 5325 @ 5.7M (+25% vs v8, −26% vs v9) |
-| v12 | Temporal-attention extractor + frame_stack=8 (**standard PPO**) | smoke running |
+| v12 | Temporal-attention extractor + frame_stack=8 (**standard PPO**) | **7609 @ 5.3M** (new best, +6.2% vs v9; 6M steps, lr=5e-5) |
 
 ---
 
@@ -2812,7 +2812,45 @@ best run for a clean head-to-head).
 read, but realize it over an *explicit, always-present* window instead of a
 recurrent state — buying back the stateless simplicity (and cold-start immunity)
 of frame stacking while extending the window and making the read content-based.
-Whether that beats v9's plain 4-frame conv is exactly what the smoke and the 4M
-run will decide; v9 already clears the game with a 533 ms window, so a null
-result (attention adds nothing this game needs) is a real and informative
-possibility.
+
+### B.7 v12 — Final result
+
+v12 ran for 6M steps at `lr=5e-5` (re-tuned from the original `1e-4` after two
+500K smokes revealed a transformer optimization cold-start: attention heads took
+~300K steps to stabilize, producing a plateau that broke out sharply thereafter).
+
+| Checkpoint | eval_return | eval_length |
+|---|---|---|
+| 3.2M | 6,298 | 1,484 |
+| 3.3M | 7,458 | 1,529 |
+| 5.1M | 6,868 | **4,500** (max steps — survived full episode) |
+| 5.2M | 7,317 | 1,470 |
+| **5.3M** | **7,609** | 1,548 — **best** |
+| 5.6M | 7,097 | 1,451 |
+| 5.8M | 6,636 | 1,421 |
+| 5.9M | 2,212 | 463 — **policy collapse** |
+| 6.0M | 7,517 | 1,479 — recovery |
+
+**Best: 7,609 @ 5.3M — new numerical best, +6.2% (+441 points) over v9's 7,168 @ 2.7M.**
+
+The attention hypothesis is validated: a fixed-window transformer over the frame
+sequence provides real benefit over pure IMPALA feature learning, **once given
+sufficient steps**. The key trade-offs vs v9:
+
+- **Sample cost**: v12 needs ~5.3M steps to peak vs v9's 2.7M — almost exactly
+  2×. Wall-clock: ~65-70h vs ~30-35h.
+- **Eval variance**: v12's late-run curve is noisier. The 5.9M crash to 2,212
+  (followed by immediate recovery to 7,517 at 6M) is likely the `ent_coef`
+  schedule reaching its floor (`0.001` at 6M), reducing the entropy regulariser
+  and exposing occasional policy-mode collapse. v9's late-run was also noisy but
+  had no comparable single-interval crash.
+- **Compute efficiency**: v9 reaches within 6% of v12's peak at half the steps.
+  For a new game integration, start with v9's architecture (IMPALA + VecNormalize
+  + `lr=1e-4`); extend to v12 only if you have the step budget and need the
+  marginal gain.
+
+The v10→v11→v12 sequence cleanly isolates the recurrence vs attention
+trade-off: LSTM cold-start is structural and cannot be overcome with more steps
+(v11, 6M, 5,325); attention eliminates the cold-start and, at the same budget,
+exceeds v9. **Experiment closed.** The best checkpoint is
+`outputs/checkpoints/ppo_airstriker_v12/best.zip`.
