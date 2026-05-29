@@ -2427,7 +2427,16 @@ The LSTM compresses all history into a fixed-size state vector `(h, c)` that is
 updated *recurrently*: `h_t = f(h_{t-1}, x_t)`. The strength is unbounded reach;
 the weakness is that the state must be **built up sequentially** and is **wrong
 at `t=0`** (it is zero). For a fast game where an episode is a single life, the
-agent pays the cold-start tax on *every* episode.
+agent pays the cold-start tax on *every* episode. Critically, `h=0` is an
+out-of-distribution starting point the LSTM was rarely trained from (training
+envs run continuously with warm state), so early hidden states `h₁, h₂, …` are
+also off — the network is not merely uninformed, it is in a part of hidden-state
+space it has barely visited. The transformer sidesteps this entirely: the
+FrameStack buffer resets to `[x₁, x₁, …, x₁]` — K copies of the real first
+observation — which the network encounters at the start of *every* episode and
+trains on constantly. As the episode progresses the buffer fills naturally
+(`[x₁,x₁,...,x₂] → [x₁,...,x₂,x₃] → …`), and the attention is reading real,
+in-distribution frames from step 0 onward, with no recovery required.
 
 Attention takes the opposite stance: keep the last `K` frames *explicitly*
 (exactly as frame stacking already does), and let the network learn, **at every
